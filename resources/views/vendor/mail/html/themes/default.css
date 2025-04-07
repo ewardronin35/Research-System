@@ -1,0 +1,106 @@
+/* Base */
+body,
+body *:not(html):not(style):not(br):not(tr):not(code) {
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+    position: relative;
+}
+
+body {
+    -webkit-text-size-adjust: none;
+    background-color: #ffffff;
+    color: #333333;
+    height: 100%;
+    line-height: 1.4;
+    margin: 0;
+    padding: 0;
+    width: 100% !important;
+}
+
+/* Header */
+.header {
+    padding: 25px 0;
+    text-align: center;
+}
+
+.header-logo {
+    text-align: center;
+}
+
+.logo {
+    height: 75px;
+    max-width: 100%;
+}
+
+/* Typography */
+h1 {
+    color: #3b7ddd;
+    font-size: 22px;
+    font-weight: bold;
+    margin-top: 0;
+    text-align: left;
+}
+
+p {
+    font-size: 16px;
+    line-height: 1.5em;
+    margin-top: 0;
+    text-align: left;
+}
+
+/* Table */
+.inner-body {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin: 0 auto;
+    padding: 0;
+    width: 570px;
+}
+
+.wrapper {
+    box-sizing: border-box;
+    padding: 35px;
+}
+
+/* Button */
+.button {
+    border-radius: 4px;
+    color: #fff;
+    display: inline-block;
+    font-weight: bold;
+    margin: 0;
+    padding: 12px 25px;
+    text-decoration: none;
+}
+
+.button-primary {
+    background-color: #3b7ddd;
+    border-bottom: 8px solid #3b7ddd;
+    border-left: 18px solid #3b7ddd;
+    border-right: 18px solid #3b7ddd;
+    border-top: 8px solid #3b7ddd;
+}
+
+.button-success {
+    background-color: #38c172;
+    border-bottom: 8px solid #38c172;
+    border-left: 18px solid #38c172;
+    border-right: 18px solid #38c172;
+    border-top: 8px solid #38c172;
+}
+
+.button-error {
+    background-color: #e3342f;
+    border-bottom: 8px solid #e3342f;
+    border-left: 18px solid #e3342f;
+    border-right: 18px solid #e3342f;
+    border-top: 8px solid #e3342f;
+}
+
+.subcopy {
+    border-top: 1px solid #e8e5ef;
+    margin-top: 25px;
+    padding-top: 25px;
+}
