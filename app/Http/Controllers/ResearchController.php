@@ -448,11 +448,9 @@ class ResearchController extends Controller
  */
 public function generateReport(Request $request)
 {
-     $id = $request->id;
-    $researchExists = \App\Models\Research::find($id);
-    dd("Checking for Research ID: " . $id, "Does it exist?", $researchExists);
+ 
 
-    
+
     try {
         // Check if a specific ID was provided
         if ($request->has('id')) {

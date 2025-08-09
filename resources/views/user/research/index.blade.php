@@ -23,7 +23,7 @@
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-    <a class="nav-link" href="{{ route('user.research.approvals') }}">
+   <a class="nav-link" href="{{ url('user/research/approvals') }}">
         <i class="fas fa-check-circle me-2"></i>Approve Research
     </a>
 </li>
@@ -86,9 +86,9 @@
             <td>{{ $paper->respondents_count ?? 'N/A' }}</td>
             <td>{{ $paper->created_at->format('M d, Y') }}</td>
             <td>
-                <a href="{{ route('user.research.generate-report', ['id' => $paper->id]) }}" class="btn btn-success btn-sm" title="View Report">
-                    <i class="fas fa-file-pdf"></i> Report
-                </a>
+               <a href="javascript:void(0)" class="btn btn-success btn-sm report-btn" data-id="{{ $paper->id }}" title="View Report">
+        <i class="fas fa-file-pdf"></i> Report
+    </a>
             </td>
             <td>
             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -766,24 +766,7 @@
             });
 
             // Edit Research Paper - Load data into modal
-            $(document).on('click', '.report-btn', function() {
-    var id = $(this).data('id');
-    
-    Swal.fire({
-        title: 'Generate Report',
-        text: "Do you want to generate a report for this research paper?",
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes, generate report'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Fix for 404 error - Use absolute path and ensure query parameter is included
-            window.location.href = "/user/research/generate-report?id=" + id;
-        }
-    });
-});
+ 
 
             // Handle Edit Form Submission
             $('#saveEdit').on('click', function() {
@@ -936,7 +919,7 @@ if ($('.dark').length) {
                     if (result.isConfirmed) {
                         // Fix for 404 error - Use the correct URL for generating reports
                         // Adding the ID as a query parameter
-                        window.location.href = "{{ route('user.research.generate-report') }}?id=" + id;
+            window.location.href = "{{ url('user/research/generate-report') }}?id=" + id;
                     }
                 });
             });
