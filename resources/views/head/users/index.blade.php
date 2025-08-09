@@ -47,6 +47,61 @@
                                 </svg>
                                 Import CSV
                             </a>
+                           <a href="{{ route('head.codes.index') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-800 focus:outline-none focus:border-indigo-800 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition ml-2">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+    </svg>
+    Manage Codes
+</a>
+
+                            <!-- Modal for Generating Codes -->
+                            <div id="generateCodesModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+                                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-md p-6">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Generate Guest Codes</h3>
+                                        <button id="closeGenerateCodesModal" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">&times;</button>
+                                    </div>
+                                    <form id="generateCodesForm" method="POST" action="{{ route('head.codes.generate') }}">
+                                        @csrf
+                                        <div class="mb-4">
+                                            <label for="code_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Number of Codes</label>
+                                            <input type="number" min="1" max="100" name="code_count" id="code_count" value="1" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required>
+                                        </div>
+                                        <button type="submit" class="w-full inline-flex justify-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-800 focus:outline-none focus:border-indigo-800 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition">
+                                            Generate
+                                        </button>
+                                    </form>
+                                    <div class="mt-6">
+                                        <h4 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">Existing Codes</h4>
+                                        <ul class="max-h-40 overflow-y-auto text-sm">
+                                            @forelse($codes as $code)
+                                                <li class="flex items-center justify-between py-1 border-b border-gray-200 dark:border-gray-700">
+                                                    <span class="font-mono">{{ $code->code }}</span>
+                                                    <span class="text-xs {{ $code->used ? 'text-red-500' : 'text-green-500' }}">
+                                                        {{ $code->used ? 'Used' : 'Unused' }}
+                                                    </span>
+                                                </li>
+                                            @empty
+                                                <li class="text-gray-500 dark:text-gray-400">No codes generated yet.</li>
+                                            @endforelse
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <script>
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    const btn = document.getElementById('generateCodesBtn');
+                                    const modal = document.getElementById('generateCodesModal');
+                                    const closeBtn = document.getElementById('closeGenerateCodesModal');
+
+                                    btn.addEventListener('click', () => modal.classList.remove('hidden'));
+                                    closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+                                    window.addEventListener('click', function(e) {
+                                        if (e.target === modal) modal.classList.add('hidden');
+                                    });
+                                });
+                            </script>
                         </div>
                         <div>
                             <input type="text" id="searchInput" placeholder="Search users..." class="rounded-md shadow-sm border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">

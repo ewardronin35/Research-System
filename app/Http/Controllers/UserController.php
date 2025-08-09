@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
-
+use App\Models\ResearchCode; // <-- Import the ResearchCode model
 class UserController extends Controller
 {
     /**
@@ -20,7 +20,9 @@ class UserController extends Controller
     public function index()
     {
         $users = User::all();
-        return view('head.users.index', compact('users'));
+    $codes = ResearchCode::latest()->take(20)->get(); // <-- Add this line to get the 20 most recent codes
+
+        return view('head.users.index', compact('users', 'codes'));
     }
 
     /**

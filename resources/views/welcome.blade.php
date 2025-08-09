@@ -905,6 +905,9 @@
                     <a class="nav-link" href="#categories"><i class="fas fa-th-large me-1"></i> Categories</a>
                 </li>
                 <li class="nav-item">
+                   <a class="nav-link" href="{{ route('guest.research.enter_code') }}"><i class="fas fa-edit me-1"></i> Enter Research</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link btn btn-primary btn-sm text-white ms-lg-3 mt-2 mt-lg-0 px-3" href="{{ route('login') }}">
                         <i class="fas fa-sign-in-alt me-1"></i> Login
                     </a>

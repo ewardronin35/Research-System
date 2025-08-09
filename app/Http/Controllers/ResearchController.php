@@ -8,9 +8,12 @@ use App\Models\Research;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
-use Illuminate\Support\Log;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use App\Mail\ResearchStatusUpdated; 
+use Illuminate\Support\Facades\Mail; 
 use TCPDF;
 class MYPDF extends TCPDF {
     public function Header() {
@@ -94,7 +97,7 @@ class ResearchController extends Controller
      */
     public function index()
     {
-        // For users/researchers, show only their own research papers
+        // For users/researchers, show all research papers
         if (Auth::user()->hasRole(['user', 'researcher'])) {
             $researchPapers = Research::all();
             return view('user.research.index', compact('researchPapers'));
@@ -125,59 +128,64 @@ class ResearchController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Request $request)
-    {
-        
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'course' => 'required|string|max:50',
-            'researchers' => 'required|string',
-            'adviser' => 'required|string|max:100',
-            'year' => 'required|integer|min:2000|max:' . date('Y'),
-            'abstract' => 'required|string',
-// Change your validation to:
-'keywords' => 'required|array',
-'keywords.*' => 'string|max:100',
-            'research_design' => 'required|string|max:50',
-            'research_type' => 'nullable|string|max:50',
-            'respondents_count' => 'nullable|integer|min:0',
-            'research_file' => 'nullable|string', // Temporary server filename
-        ]);
+   public function store(Request $request)
+{
+    // 1. Add 'email' to your validation rules.
+    $request->validate([
+        'title' => 'required|string|max:255',
+        'course' => 'required|string|max:50',
+        'researchers' => 'required|string',
+        'adviser' => 'required|string|max:100',
+        'year' => 'required|integer|min:2000|max:' . date('Y'),
+        'email' => 'required|email|max:255', // <-- ADD THIS
+        'abstract' => 'required|string',
+        'keywords' => 'required|array',
+        'keywords.*' => 'string|max:100',
+        'research_design' => 'required|string|max:50',
+        'research_type' => 'nullable|string|max:50',
+        'respondents_count' => 'nullable|integer|min:0',
+        'research_file' => 'nullable|string',
+    ]);
 
-        // Handle file upload
-        $tempFileName = $request->input('research_file');
-        $filePath = null;
-    
-        if ($tempFileName) {
-            $tempPath = 'public/temp_research_files/' . $tempFileName;
-            $finalPath = 'research_papers/' . $tempFileName;
-    
-            // Move file from temp to final location if it exists
-            if (Storage::exists($tempPath)) {
-                Storage::move($tempPath, 'public/' . $finalPath);
-                $filePath = $finalPath;
-            }
+    // File handling logic remains the same...
+    $filePath = null;
+    $tempFileName = $request->input('research_file');
+    if ($tempFileName) {
+        $tempPath = 'public/temp_research_files/' . $tempFileName;
+        $finalPath = 'research_papers/' . $tempFileName;
+        if (Storage::exists($tempPath)) {
+            Storage::move($tempPath, 'public/' . $finalPath);
+            $filePath = $finalPath;
         }
-        // Create new research paper record
-        $research = new Research();
-        $research->title = $request->title;
-        $research->course = $request->course;
-        $research->researchers = $request->researchers;
-        $research->adviser = $request->adviser;
-        $research->year = $request->year;
-        $research->abstract = $request->abstract;
-        $research->keywords = is_array($request->keywords) ? implode(', ', $request->keywords) : $request->keywords;
-        $research->program = $request->program;
-        $research->category = $request->category;
-        $research->research_design = $request->research_design;
-        $research->research_type = $request->research_type;
-        $research->respondents_count = $request->respondents_count;
-        $research->file_path = $filePath;
-        $research->save();
-
-        $prefix = Auth::user()->hasRole('head') ? 'head' : 'user';
-        return view("{$prefix}.research.index")->with('success', 'Research paper submitted successfully.');
     }
+    
+    // Create new research paper record
+    $research = new Research();
+    $research->title = $request->title;
+    $research->course = $request->course;
+    $research->researchers = $request->researchers;
+    $research->adviser = $request->adviser;
+    $research->year = $request->year;
+    $research->abstract = $request->abstract;
+    $research->keywords = implode(', ', $request->keywords);
+    $research->program = $request->program;
+    $research->category = $request->category;
+    $research->research_design = $request->research_design;
+    $research->research_type = $request->research_type;
+    $research->respondents_count = $request->respondents_count;
+    $research->file_path = $filePath;
+    
+    // 2. Use the email from the form's input field.
+    $research->email = $request->email;
+    
+    // 3. Set the approval status to 'approved' automatically.
+    $research->approval_status = 'approved';
+
+    $research->save();
+
+    $prefix = Auth::user()->hasRole('head') ? 'head' : 'user';
+    return redirect()->route("{$prefix}.research.index")->with('success', 'Research paper submitted and approved successfully.');
+}
 
     /**
      * Display the specified research paper.
@@ -440,6 +448,11 @@ class ResearchController extends Controller
  */
 public function generateReport(Request $request)
 {
+     $id = $request->id;
+    $researchExists = \App\Models\Research::find($id);
+    dd("Checking for Research ID: " . $id, "Does it exist?", $researchExists);
+
+    
     try {
         // Check if a specific ID was provided
         if ($request->has('id')) {
@@ -663,8 +676,83 @@ public function generateReport(Request $request)
         }
     } catch (\Exception $e) {
         // Log the error and return with error message
-        \Log::error('PDF Generation Error: ' . $e->getMessage());
+        Log::error('PDF Generation Error: ' . $e->getMessage());
         return back()->with('error', 'Failed to generate report: ' . $e->getMessage());
     }
+}
+
+public function showApprovals()
+{
+    // Check if user has appropriate role
+    if (!Auth::user()->hasRole(['head', 'admin', 'user'])) {
+        abort(403, 'Unauthorized action.');
+    }
+
+    // Fetch research papers for each status category
+    $pendingResearch = Research::where('approval_status', 'pending')->latest()->get();
+    $approvedResearch = Research::where('approval_status', 'approved')->latest()->get();
+    $rejectedResearch = Research::where('approval_status', 'rejected')->latest()->get();
+
+    // Determine view based on user role
+    if (Auth::user()->hasRole(['head', 'admin'])) {
+        return view('head.research.approvals', compact('pendingResearch', 'approvedResearch', 'rejectedResearch'));
+    } else {
+        // For regular users
+        return view('user.research.approvals', compact('pendingResearch', 'approvedResearch', 'rejectedResearch'));
+    }
+}
+
+public function approve(Research $research)
+{
+    // Use the save() method for maximum reliability.
+    $research->approval_status = 'approved';
+    $research->save();
+
+    // The 'email' field is saved by your GuestResearchController,
+    // so this check will now work correctly.
+    if ($research->email) {
+        try {
+            Mail::to($research->email)->send(new ResearchStatusUpdated($research));
+        } catch (\Exception $e) {
+            // Log the error if the email fails, but don't stop the process.
+            Log::error('Email sending failed for research ID ' . $research->id . ': ' . $e->getMessage());
+            
+            // Redirect based on user role
+            if (Auth::user()->hasRole(['head', 'admin'])) {
+                return redirect()->route('head.research.approvals')->with('success', 'Research approved, but failed to send notification email.');
+            } else {
+                return redirect()->route('user.research.index')->with('success', 'Research approved, but failed to send notification email.');
+            }
+        }
+    }
+
+    // Redirect based on user role
+    if (Auth::user()->hasRole(['head', 'admin'])) {
+        return redirect()->route('head.research.approvals')->with('success', 'Research paper has been approved.');
+    } else {
+        return redirect()->route('user.research.index')->with('success', 'Research paper has been approved.');
+    }
+}
+
+
+public function reject(Research $research)
+{
+    // Use the save() method for maximum reliability.
+    $research->approval_status = 'rejected';
+    $research->save();
+
+    // The 'email' field is saved by your GuestResearchController,
+    // so this check will now work correctly.
+    if ($research->email) {
+        try {
+            Mail::to($research->email)->send(new ResearchStatusUpdated($research));
+        } catch (\Exception $e) {
+            // Log the error if the email fails, but don't stop the process.
+            Log::error('Email sending failed for research ID ' . $research->id . ': ' . $e->getMessage());
+            return redirect()->route('head.research.approvals')->with('success', 'Research rejected, but failed to send notification email.');
+        }
+    }
+
+    return redirect()->route('head.research.approvals')->with('success', 'Research paper has been rejected.');
 }
 }

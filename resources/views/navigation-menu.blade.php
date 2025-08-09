@@ -36,7 +36,7 @@
                     </x-nav-link>
                     
                     <!-- Reports Link (Only for head/admin routes) -->
-                    @if(request()->segment(1) === 'head' || request()->segment(1) === 'admin')
+           
                     <x-nav-link href="{{ route('head.statistics.index') }}" :active="request()->routeIs('head.reports.*')" 
                         class="group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-in-out">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transition-colors duration-200" 
@@ -47,7 +47,7 @@
                         </svg>
                         <span>{{ __('Reports') }}</span>
                     </x-nav-link>
-                    @endif
+              
 
                     <!-- User Management (Only for head/admin routes) -->
                     @if(request()->segment(1) === 'head' || request()->segment(1) === 'admin')
@@ -58,6 +58,24 @@
                             <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
                         </svg>
                         <span>{{ __('Manage Users') }}</span>
+                    </x-nav-link>
+                  
+                    @endif
+                    @if(request()->segment(1) === 'head' || request()->segment(1) === 'admin')
+                      <x-nav-link href="{{ route('head.codes.index') }}" :active="request()->routeIs('head.codes.*')" 
+                        class="group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-in-out">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transition-colors duration-200" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M8.257 3.099c.366-.446.957-.533 1.403-.167.446.366.533.957.167 1.403L6.414 8l3.413 3.665c.366.446.279 1.037-.167 1.403-.446.366-1.037.279-1.403-.167l-4-5a1 1 0 010-1.272l4-5zM11.743 16.901c-.366.446-.957.533-1.403.167-.446-.366-.533-.957-.167-1.403L13.586 12l-3.413-3.665c-.366-.446-.279-1.037.167-1.403.446-.366 1.037-.279 1.403.167l4 5a1 1 0 010 1.272l-4 5z"/>
+                        </svg>
+                        <span>{{ __('Codes') }}</span>
+                    </x-nav-link>
+                    @else
+                      <x-nav-link href="{{ route('user.codes.index') }}" :active="request()->routeIs('user.codes.*')" 
+                        class="group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-in-out">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transition-colors duration-200" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M8.257 3.099c.366-.446.957-.533 1.403-.167.446.366.533.957.167 1.403L6.414 8l3.413 3.665c.366.446.279 1.037-.167 1.403-.446.366-1.037.279-1.403-.167l-4-5a1 1 0 010-1.272l4-5zM11.743 16.901c-.366.446-.957.533-1.403.167-.446-.366-.533-.957-.167-1.403L13.586 12l-3.413-3.665c-.366-.446-.279-1.037.167-1.403.446-.366 1.037-.279 1.403.167l4 5a1 1 0 010 1.272l-4 5z"/>
+                        </svg>
+                        <span>{{ __('Codes') }}</span>
                     </x-nav-link>
                     @endif
                 </div>

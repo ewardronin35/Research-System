@@ -375,6 +375,8 @@
                         </div>
                         <div class="card-body">
                         <form id="customReportForm" action="{{ url('/research-statistics/generate-report') }}" method="GET">
+                                <input type="hidden" name="preview" value="true">
+
                         <div class="mb-3">
                                     <label for="reportName" class="form-label">Report Name</label>
                                     <input type="text" class="form-control" id="reportName" name="report_name" value="Custom Research Report">
@@ -561,18 +563,11 @@
                         </h5>
                         <p class="card-text">Comprehensive report of all research papers with complete details.</p>
                     </div>
-                    <div class="card-footer bg-transparent border-0 text-end">
-                        <div class="btn-group report-btn-group">
-                            <button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                Generate
-                            </button>
-                            <ul class="dropdown-menu report-dropdown">
-                                <li><a class="dropdown-item report-link" href="{{ url('/research-statistics/generate-report') }}?type=all&format=pdf"><i class="fas fa-file-pdf me-2"></i> PDF</a></li>
-                                <li><a class="dropdown-item report-link" href="{{ url('/research-statistics/generate-report') }}?type=all&format=excel"><i class="fas fa-file-excel me-2"></i> Excel</a></li>
-                                <li><a class="dropdown-item report-link" href="{{ url('/research-statistics/generate-report') }}?type=all&format=csv"><i class="fas fa-file-csv me-2"></i> CSV</a></li>
-                            </ul>
-                        </div>
-                    </div>
+                   <div class="card-footer bg-transparent border-0 text-end">
+    <a href="{{ url('/research-statistics/generate-report') }}?type=all&preview=true" target="_blank" class="btn btn-sm btn-primary">
+        View Report
+    </a>
+</div>
                 </div>
             </div>
             

@@ -624,11 +624,23 @@ class StatisticsController extends Controller
             }
             
             // Get results
-            $researches = $query->get();
-            
+              $researches = $query->get();
+            $prefix = Auth::user()->hasRole('head') ? 'head' : 'user';
+
             Log::info('Found research papers', ['count' => $researches->count()]);
-            
-            // Generate report based on format
+
+            // If a 'preview' parameter is in the request, show the preview page.
+            if ($request->has('preview')) {
+                // Pass all the necessary data to the new preview view.
+                // We pass the original request so we can build the download links easily.
+                return view("{$prefix}.statistics.report-preview", compact(
+                    'researches',
+                    'reportTitle',
+                    'request' // Pass the entire request object
+                ));
+            }
+
+            // Otherwise, generate the report file as before.
             switch ($format) {
                 case 'csv':
                     return $this->generateEnhancedCsvReport($researches, $request, $type, $reportTitle);

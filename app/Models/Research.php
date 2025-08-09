@@ -14,6 +14,10 @@ class Research extends Model
         'title', 'course', 'researchers', 'adviser', 'year', 
         'abstract', 'keywords', 'program', 'category', 
         'research_design', 'research_type', 'respondents_count',
-        'file_path'
+        'file_path', 'approval_status', 'email',
     ];
+     public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

@@ -10,56 +10,33 @@ use Yajra\DataTables\Facades\DataTables;
 
 class WelcomeController extends Controller
 {
-    public function index()
+   public function index()
     {
-        // Fetch research papers for display in the welcome page
-        $researchPapers = Research::latest()->take(20)->get();
+        // Fetch ONLY approved research papers
+        $researchPapers = Research::where('approval_status', 'approved')->latest()->take(20)->get();
         
-        // Get statistics for the statistics section
+        // Get statistics based ONLY on approved papers
         $stats = [
-            'totalPapers' => Research::count(),
-            'totalResearchers' => DB::table('researches')
-                ->select('researchers')
-                ->distinct()
-                ->count(),
-            'totalAdvisers' => DB::table('researches')
-                ->select('adviser')
-                ->distinct()
-                ->count(),
-            'totalPrograms' => DB::table('researches')
-                ->select('course')
-                ->distinct()
-                ->count()
+            'totalPapers' => Research::where('approval_status', 'approved')->count(),
+            'totalResearchers' => DB::table('researches')->where('approval_status', 'approved')->select('researchers')->distinct()->count(),
+            'totalAdvisers' => DB::table('researches')->where('approval_status', 'approved')->select('adviser')->distinct()->count(),
+            'totalPrograms' => DB::table('researches')->where('approval_status', 'approved')->select('course')->distinct()->count()
         ];
         
-        // Get the count of papers per course/program for categories section
-        $courseCounts = DB::table('researches')
+        // Get course counts based ONLY on approved papers
+        $courseCounts = DB::table('researches')->where('approval_status', 'approved')
             ->select('course', DB::raw('count(*) as paper_count'))
-            ->groupBy('course')
-            ->orderBy('paper_count', 'desc')
-            ->get();
+            ->groupBy('course')->orderBy('paper_count', 'desc')->get();
             
-        // Get available years for the year filter
-        $years = DB::table('researches')
-            ->select('year')
-            ->distinct()
-            ->orderBy('year', 'desc')
-            ->pluck('year');
+        // Get available years from ONLY approved papers
+        $years = DB::table('researches')->where('approval_status', 'approved')
+            ->select('year')->distinct()->orderBy('year', 'desc')->pluck('year');
             
-        // Get available research designs for the filter
-        $researchDesigns = DB::table('researches')
-            ->select('research_design')
-            ->distinct()
-            ->whereNotNull('research_design')
-            ->pluck('research_design');
+        // Get available research designs from ONLY approved papers
+        $researchDesigns = DB::table('researches')->where('approval_status', 'approved')
+            ->select('research_design')->distinct()->whereNotNull('research_design')->pluck('research_design');
         
-        return view('welcome', compact(
-            'researchPapers', 
-            'stats', 
-            'courseCounts', 
-            'years', 
-            'researchDesigns'
-        ));
+        return view('welcome', compact('researchPapers', 'stats', 'courseCounts', 'years', 'researchDesigns'));
     }
     
     /**
@@ -70,7 +47,7 @@ class WelcomeController extends Controller
      */
     public function getResearchData(Request $request)
     {
-        $query = Research::select('*');
+        $query = Research::where('approval_status', 'approved')->select('*');
 
         // Apply filters
         if ($request->has('keywords') && !empty($request->keywords)) {
@@ -128,11 +105,10 @@ class WelcomeController extends Controller
      */
     public function getResearchDetails($id)
     {
-        $research = Research::findOrFail($id);
-        
+        // Find ONLY an approved paper by ID
+        $research = Research::where('approval_status', 'approved')->findOrFail($id);
         return response()->json($research);
     }
-
     /**
      * Download a research paper file.
      *
@@ -141,13 +117,14 @@ class WelcomeController extends Controller
      */
     public function downloadResearch($id)
     {
-        $research = Research::findOrFail($id);
+        // Find ONLY an approved paper to allow download
+        $research = Research::where('approval_status', 'approved')->findOrFail($id);
         
-        if (empty($research->file_path) || !Storage::exists($research->file_path)) {
+        if (empty($research->file_path) || !Storage::disk('public')->exists($research->file_path)) {
             abort(404, 'File not found');
         }
         
-        return Storage::download(
+        return Storage::disk('public')->download(
             $research->file_path, 
             $research->title . ' - ' . $research->year . '.pdf'
         );
@@ -158,47 +135,32 @@ class WelcomeController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getStatistics()
+  public function getStatistics()
     {
-        // Total papers
-        $totalPapers = Research::count();
+        // Base query for approved papers
+        $approvedQuery = Research::where('approval_status', 'approved');
+
+        $totalPapers = $approvedQuery->count();
         
-        // Unique researchers count (approximation by splitting researchers field)
-        $researchersData = Research::select('researchers')->get();
+        // Calculations remain the same, but are now based on the approved query
+        $researchersData = $approvedQuery->select('researchers')->get();
         $uniqueResearchers = collect();
-        
         foreach ($researchersData as $research) {
             $names = explode(',', $research->researchers);
             foreach ($names as $name) {
                 $uniqueResearchers->push(trim($name));
             }
         }
-        
         $totalResearchers = $uniqueResearchers->unique()->count();
         
-        // Unique advisers count
-        $totalAdvisers = Research::select('adviser')
-            ->distinct()
-            ->whereNotNull('adviser')
-            ->count();
+        $totalAdvisers = $approvedQuery->distinct()->whereNotNull('adviser')->count('adviser');
+        $totalPrograms = $approvedQuery->distinct()->whereNotNull('course')->count('course');
         
-        // Programs count
-        $totalPrograms = Research::select('course')
-            ->distinct()
-            ->whereNotNull('course')
-            ->count();
+        $programStats = $approvedQuery->select('course', DB::raw('count(*) as count'))
+            ->groupBy('course')->whereNotNull('course')->get();
         
-        // Papers by program stats
-        $programStats = Research::select('course', DB::raw('count(*) as count'))
-            ->groupBy('course')
-            ->whereNotNull('course')
-            ->get();
-        
-        // Papers by research design
-        $designStats = Research::select('research_design', DB::raw('count(*) as count'))
-            ->groupBy('research_design')
-            ->whereNotNull('research_design')
-            ->get();
+        $designStats = $approvedQuery->select('research_design', DB::raw('count(*) as count'))
+            ->groupBy('research_design')->whereNotNull('research_design')->get();
         
         return response()->json([
             'totalPapers' => $totalPapers,

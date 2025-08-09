@@ -22,6 +22,11 @@
                                 <i class="fas fa-plus-circle me-2"></i>Add New Research
                             </button>
                         </li>
+                        <li class="nav-item" role="presentation">
+    <a class="nav-link" href="{{ route('user.research.approvals') }}">
+        <i class="fas fa-check-circle me-2"></i>Approve Research
+    </a>
+</li>
                     </ul>
                     
                     <!-- Tabs Content -->
@@ -38,31 +43,41 @@
             <th>Course</th>
             <th>Researchers</th>
             <th>Adviser</th>
+            <th>Email</th>
             <th>Year</th>
-            <th>Program</th>
+            <th>Department</th>
             <th>Category</th>
             <th>Research Design</th>
-            <th>Type</th>
-            <th>Respondents</th>
+            <th>Research Type</th>
+            <th>No of Respondents</th>
             <th>Date Submitted</th>
-            <th>Action</th>
+            <th>Actions</th>
+            <th>Approval Status</th>
+            
         </tr>
     </thead>
     <tbody>
         @foreach($researchPapers ?? [] as $paper)
         <tr>
             <td>
-                @if($paper->file_path)
+            @if($paper->file_path)
+            {{-- Only make it a link if it is approved --}}
+            @if($paper->approval_status == 'approved')
                 <a href="{{ route('user.research.download', $paper->id) }}" target="_blank" class="text-primary">
                     {{ $paper->title }}
                 </a>
-                @else
+            @else
                 {{ $paper->title }}
-                @endif
-            </td>
+            @endif
+               @else
+                {{ $paper->title }}
+            @endif
+
+        </td>
             <td>{{ $paper->course }}</td>
             <td>{{ $paper->researchers }}</td>
             <td>{{ $paper->adviser }}</td>
+            <td>{{ $paper->email }}</td>
             <td>{{ $paper->year }}</td>
             <td>{{ $paper->program ?? 'N/A' }}</td>
             <td>{{ $paper->category ?? 'N/A' }}</td>
@@ -75,6 +90,14 @@
                     <i class="fas fa-file-pdf"></i> Report
                 </a>
             </td>
+            <td>
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                @if($paper->approval_status == 'approved') bg-green-100 text-green-800 @endif
+                @if($paper->approval_status == 'pending') bg-yellow-100 text-yellow-800 @endif
+                @if($paper->approval_status == 'rejected') bg-red-100 text-red-800 @endif">
+                {{ ucfirst($paper->approval_status) }}
+            </span>
+        </td>
         </tr>
         @endforeach
     </tbody>
@@ -163,7 +186,13 @@
                                                         <div class="invalid-feedback">Please enter researcher names</div>
                                                     </div>
                                                 </div>
-
+                                                <div class="row mb-3">
+                                                   <div class="col-md-12">
+                    <label for="email" class="form-label">Your Email Address<span class="text-danger">*</span></label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ old('email') }}" required placeholder="Approval status will be sent here">
+                    <div class="invalid-feedback">Please enter a valid email address.</div>
+                </div>
+                                                </div>  
                                                 <div class="row mb-3">
                                                     <div class="col-md-12">
                                                         <label for="adviser" class="form-label">Adviser<span class="text-danger">*</span></label>
@@ -723,7 +752,7 @@
                 $('#view-keywords').text('N/A');
             }
                         // Set download link
-                        $('#download-link').attr('href', '/user/research/' + id + '/download');
+                        $('#download-link').attr('href', '/head/research/' + id + '/download');
                     },
                     error: function() {
                         Swal.fire({
@@ -865,7 +894,7 @@ if ($('.dark').length) {
                 }).then((result) => {
                     if (result.isConfirmed) {
                         $.ajax({
-                            url: `/user/research/${id}`,
+                            url: `/head/research/${id}`,
                             type: 'DELETE',
                             data: {
                                 "_token": "{{ csrf_token() }}"
