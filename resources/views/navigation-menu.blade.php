@@ -14,9 +14,10 @@
                 <!-- Navigation Links -->
                 <div class="hidden space-x-4 md:space-x-6 sm:-my-px sm:ml-8 sm:flex">
                     <!-- Dashboard Link -->
-                    <x-nav-link href="{{ route('dashboard') }}" :active="request()->routeIs('dashboard')" 
+                     <x-nav-link href="{{ route(request()->segment(1) === 'head' || request()->segment(1) === 'admin' ? 'head.dashboard' : 'user.dashboard') }}" 
+                        :active="request()->routeIs('*.dashboard')"
                         class="group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-in-out">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transition-colors duration-200" 
+                                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transition-colors duration-200" 
                             viewBox="0 0 20 20" fill="currentColor">
                             <path d="M10 2L2 8h3v8h4V12h2v4h4V8h3L10 2z" />
                         </svg>
@@ -37,6 +38,7 @@
                     
                     <!-- Reports Link (Only for head/admin routes) -->
            
+                    @if(request()->segment(1) === 'head' || request()->segment(1) === 'admin')
                     <x-nav-link href="{{ route('head.statistics.index') }}" :active="request()->routeIs('head.reports.*')" 
                         class="group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-in-out">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transition-colors duration-200" 
@@ -47,7 +49,18 @@
                         </svg>
                         <span>{{ __('Reports') }}</span>
                     </x-nav-link>
-              
+                    @else
+                    <x-nav-link href="{{ route('user.statistics.index') }}" :active="request()->routeIs('user.reports.*')" 
+                        class="group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-in-out">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transition-colors duration-200" 
+                            viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" 
+                                d="M3 3a1 1 0 011-1h12a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm1 0v12h12V3H4zm3 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm3 0a1 1 0 10-2 0v6a1 1 0 102 0V7zm3 0a1 1 0 10-2 0v8a1 1 0 102 0V7z" 
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>{{ __('Reports') }}</span>
+                    </x-nav-link>
+                    @endif
 
                     <!-- User Management (Only for head/admin routes) -->
                     @if(request()->segment(1) === 'head' || request()->segment(1) === 'admin')

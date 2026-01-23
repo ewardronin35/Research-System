@@ -10,10 +10,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\DB;
 use App\Mail\ResearchStatusUpdated; 
 use Illuminate\Support\Facades\Mail; 
+
 use TCPDF;
 class MYPDF extends TCPDF {
     public function Header() {
@@ -130,6 +129,8 @@ class ResearchController extends Controller
      */
    public function store(Request $request)
 {
+            Log::info('--- Starting Research Store ---');
+        Log::info('Request data:', $request->all());
     // 1. Add 'email' to your validation rules.
     $request->validate([
         'title' => 'required|string|max:255',
@@ -148,40 +149,55 @@ class ResearchController extends Controller
     ]);
 
     // File handling logic remains the same...
-    $filePath = null;
-    $tempFileName = $request->input('research_file');
-    if ($tempFileName) {
-        $tempPath = 'public/temp_research_files/' . $tempFileName;
-        $finalPath = 'research_papers/' . $tempFileName;
-        if (Storage::exists($tempPath)) {
-            Storage::move($tempPath, 'public/' . $finalPath);
-            $filePath = $finalPath;
+   $filePath = null;
+        $tempFileName = $request->input('research_file');
+
+        // --- CORRECTED FILE HANDLING LOGIC ---
+        if ($tempFileName) {
+            // Define paths relative to the disk's root
+                        Log::info('Temp file name received from form: ' . $tempFileName);
+
+            $tempPath = 'temp_research_files/' . $tempFileName;
+            $finalPath = 'research_papers/' . $tempFileName;
+            Log::info('Checking for temp file on public disk at path: ' . $tempPath);
+
+            // Use the 'public' disk explicitly for all operations
+           Log::info('Checking for temp file on public disk at path: ' . $tempPath);
+            if (Storage::disk('public')->exists($tempPath)) {
+                Log::info('Temp file found. Moving to: ' . $finalPath);
+                Storage::disk('public')->move($tempPath, $finalPath);
+                $filePath = $finalPath;
+                Log::info('File path set to: ' . $filePath);
+            } else {
+                Log::error('Temp file NOT FOUND at path: ' . $tempPath);
+            }
+        } else {
+            Log::warning('No research_file input was received from the form.');
         }
-    }
-    
-    // Create new research paper record
-    $research = new Research();
-    $research->title = $request->title;
-    $research->course = $request->course;
-    $research->researchers = $request->researchers;
-    $research->adviser = $request->adviser;
-    $research->year = $request->year;
-    $research->abstract = $request->abstract;
-    $research->keywords = implode(', ', $request->keywords);
-    $research->program = $request->program;
-    $research->category = $request->category;
-    $research->research_design = $request->research_design;
-    $research->research_type = $request->research_type;
-    $research->respondents_count = $request->respondents_count;
-    $research->file_path = $filePath;
-    
-    // 2. Use the email from the form's input field.
-    $research->email = $request->email;
-    
-    // 3. Set the approval status to 'approved' automatically.
-    $research->approval_status = 'approved';
+        
+// Create new research paper record
+        $research = new Research();
+        $research->title = $request->title;
+        $research->course = $request->course;
+        $research->researchers = $request->researchers;
+        $research->adviser = $request->adviser;
+        $research->year = $request->year;
+        $research->abstract = $request->abstract;
+        $research->keywords = implode(', ', $request->keywords);
+        $research->program = $request->program;
+        $research->category = $request->category;
+        $research->research_design = $request->research_design;
+        $research->research_type = $request->research_type;
+        $research->respondents_count = $request->respondents_count;
+        $research->email = $request->email;
+        $research->approval_status = 'approved';
+
+        // Assign the corrected file path
+        $research->file_path = $filePath; // Assign the path
 
     $research->save();
+            Log::info('--- Research Store Complete ---');
+
 
     $prefix = Auth::user()->hasRole('head') ? 'head' : 'user';
     return redirect()->route("{$prefix}.research.index")->with('success', 'Research paper submitted and approved successfully.');
@@ -217,9 +233,8 @@ class ResearchController extends Controller
     $tempPath = $file->storeAs('temp_research_files', $fileName, 'public');
 
     // Return the server ID (filename) for FilePond
-    return response()->json([
-        'serverFileName' => $fileName
-    ]);
+        return $fileName;
+
 }
     public function show(Research $research)
     {
@@ -250,16 +265,60 @@ class ResearchController extends Controller
      * @param  \App\Models\Research  $research
      * @return \Illuminate\Http\Response
      */
+ public function loadFile(Research $research)
+    {
+        // FIX: Allow both 'head' and 'user' roles to load files
+        if (!Auth::user()->hasRole(['head', 'user'])) {
+            abort(403);
+        }
+
+        if (!$research->file_path || !Storage::disk('public')->exists($research->file_path)) {
+            abort(404);
+        }
+
+        $filePath = Storage::disk('public')->path($research->file_path);
+        return response()->file($filePath);
+    }
+
+    public function removeFile(Request $request)
+    {
+        // FIX: Allow both 'head' and 'user' roles to remove files
+        if (!Auth::user()->hasRole(['head', 'user'])) {
+            abort(403);
+        }
+        
+        $researchId = $request->getContent();
+
+        if ($researchId) {
+            $research = Research::find($researchId);
+
+            if ($research && $research->file_path) {
+                Storage::disk('public')->delete($research->file_path);
+                $research->file_path = null;
+                $research->save();
+                return response()->json(['success' => 'File removed successfully.']);
+            }
+        }
+
+        return response()->json(['error' => 'Could not remove file.'], 500);
+    }
     public function edit(Research $research)
     {
         // Check if user has permission to edit this research
-        if (Auth::user()->role !== 'admin' && Auth::id() !== $research->user_id) {
+        if (Auth::user()->role !== 'user' && Auth::user()->role !== 'head' && Auth::id() !== $research->user_id) {
             abort(403, 'Unauthorized action.');
         }
 
         return view('research.edit', compact('research'));
     }
-
+public function getResearchData(Research $research)
+{
+    // Check if user has either 'head' or 'user' role
+    if (!Auth::user()->hasRole(['head', 'user'])) {
+        return response()->json(['error' => 'Unauthorized'], 403);
+    }
+    return response()->json($research);
+}
     /**
      * Update the specified research paper in storage.
      *
@@ -269,8 +328,7 @@ class ResearchController extends Controller
      */
     public function update(Request $request, Research $research)
     {
-        // Check if user has permission to update this research
-        if (Auth::user()->role !== 'admin' && Auth::id() !== $research->user_id) {
+        if (!Auth::user()->hasRole(['head', 'user'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -281,50 +339,61 @@ class ResearchController extends Controller
             'adviser' => 'required|string|max:100',
             'year' => 'required|integer|min:2000|max:' . date('Y'),
             'abstract' => 'required|string',
-            'keywords' => 'required|string|max:255',
+            'keywords' => 'required|array',
+            'keywords.*' => 'string|max:255',
             'research_design' => 'required|string|max:50',
             'research_type' => 'nullable|string|max:50',
             'respondents_count' => 'nullable|integer|min:0',
-            'research_file' => 'nullable|file|mimes:pdf|max:10240', // 10MB max
+             // Filepond sends a string, not a file, so we remove the file validation here
+            'research_file' => 'nullable|string',
         ]);
 
-        // Handle file upload if a new file is provided
-        if ($request->hasFile('research_file')) {
-            // Delete old file if exists
-            if ($research->file_path && Storage::disk('public')->exists($research->file_path)) {
-                Storage::disk('public')->delete($research->file_path);
+         $tempFileName = $request->input('research_file');
+        
+        // --- CORRECTED FILE HANDLING LOGIC ---
+        if ($tempFileName) {
+            // Define paths relative to the disk's root
+            $tempPath = 'temp_research_files/' . $tempFileName;
+            $finalPath = 'research_papers/' . $tempFileName;
+
+            // Use the 'public' disk explicitly
+            if (Storage::disk('public')->exists($tempPath)) {
+                // A new file was uploaded, so delete the old one if it exists
+                if ($research->file_path && Storage::disk('public')->exists($research->file_path)) {
+                    Storage::disk('public')->delete($research->file_path);
+                }
+                
+                // Move the new file to its final destination
+                Storage::disk('public')->move($tempPath, $finalPath);
+                // Update the file_path on the model
+                $research->file_path = $finalPath;
             }
-            
-            // Store new file
-            $file = $request->file('research_file');
-            $fileName = time() . '_' . Str::slug($request->title) . '.' . $file->getClientOriginalExtension();
-            $filePath = $file->storeAs('research_papers', $fileName, 'public');
-            $research->file_path = $filePath;
         }
 
-        // Update research paper record
+        // Update other research paper record fields
         $research->title = $request->title;
         $research->course = $request->course;
         $research->researchers = $request->researchers;
         $research->adviser = $request->adviser;
         $research->year = $request->year;
         $research->abstract = $request->abstract;
-        $research->keywords = is_array($request->keywords) ? implode(', ', $request->keywords) : $request->keywords;
+        $research->keywords = implode(', ', $request->keywords);
         $research->program = $request->program;
         $research->category = $request->category;
         $research->research_design = $request->research_design;
         $research->research_type = $request->research_type;
         $research->respondents_count = $request->respondents_count;
         
-        // If not admin and the research is already approved, set status back to pending
-        if (Auth::user()->role !== 'admin' && $research->status === 'published') {
-            $research->status = 'pending';
-        }
-        
         $research->save();
 
-        return redirect()->route('research.index')
-            ->with('success', 'Research paper updated successfully.');
+        // Redirect based on user role
+        if (Auth::user()->hasRole('head')) {
+            return redirect()->route('head.research.index')
+                ->with('success', 'Research paper updated successfully.');
+        } else {
+            return redirect()->route('user.research.index')
+                ->with('success', 'Research paper updated successfully.');
+        }
     }
 
     /**
@@ -333,24 +402,30 @@ class ResearchController extends Controller
      * @param  \App\Models\Research  $research
      * @return \Illuminate\Http\Response
      */
-    public function destroy(Research $research)
-    {
-        // Check if user has permission to delete this research
-        if (Auth::user()->role !== 'admin' && Auth::id() !== $research->user_id) {
-            abort(403, 'Unauthorized action.');
-        }
+public function destroy(Research $research)
+{
+    // Check for 'head' or 'user' role
+    if (!Auth::user()->hasRole(['head', 'user'])) {
+        abort(403, 'Unauthorized action.');
+    }
 
-        // Delete the file if exists
-        if ($research->file_path && Storage::disk('public')->exists($research->file_path)) {
-            Storage::disk('public')->delete($research->file_path);
-        }
+    // Delete the file if exists
+    if ($research->file_path && Storage::disk('public')->exists($research->file_path)) {
+        Storage::disk('public')->delete($research->file_path);
+    }
 
-        // Delete the research record
-        $research->delete();
+    // Delete the research record
+    $research->delete();
 
-        return redirect()->route('research.index')
+    // Redirect based on user role
+    if (Auth::user()->hasRole('head')) {
+        return redirect()->route('head.research.index')
+            ->with('success', 'Research paper deleted successfully.');
+    } else {
+        return redirect()->route('user.research.index')
             ->with('success', 'Research paper deleted successfully.');
     }
+}
 
     /**
      * Display a listing of published research papers for browsing.
@@ -448,7 +523,7 @@ class ResearchController extends Controller
  */
 public function generateReport(Request $request)
 {
- 
+
 
 
     try {
@@ -735,6 +810,11 @@ public function approve(Research $research)
 
 public function reject(Research $research)
 {
+    // Check if user has appropriate role
+    if (!Auth::user()->hasRole(['head', 'user'])) {
+        abort(403, 'Unauthorized action.');
+    }
+
     // Use the save() method for maximum reliability.
     $research->approval_status = 'rejected';
     $research->save();
@@ -747,10 +827,21 @@ public function reject(Research $research)
         } catch (\Exception $e) {
             // Log the error if the email fails, but don't stop the process.
             Log::error('Email sending failed for research ID ' . $research->id . ': ' . $e->getMessage());
-            return redirect()->route('head.research.approvals')->with('success', 'Research rejected, but failed to send notification email.');
+            
+            // Redirect based on user role
+            if (Auth::user()->hasRole('head')) {
+                return redirect()->route('head.research.approvals')->with('success', 'Research rejected, but failed to send notification email.');
+            } else {
+                return redirect()->route('user.research.approvals')->with('success', 'Research rejected, but failed to send notification email.');
+            }
         }
     }
 
-    return redirect()->route('head.research.approvals')->with('success', 'Research paper has been rejected.');
+    // Redirect based on user role
+    if (Auth::user()->hasRole('head')) {
+        return redirect()->route('head.research.approvals')->with('success', 'Research paper has been rejected.');
+    } else {
+        return redirect()->route('user.research.approvals')->with('success', 'Research paper has been rejected.');
+    }
 }
 }

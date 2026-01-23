@@ -12,7 +12,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use App\Notifications\CustomResetPasswordNotification;
 use Illuminate\Auth\Passwords\CanResetPassword;
-
+use Illuminate\Database\Eloquent\Casts\Attribute; 
 class User extends Authenticatable
 {
     use HasApiTokens;
@@ -79,4 +79,6 @@ class User extends Authenticatable
     {
         $this->notify(new CustomResetPasswordNotification($token));
     }
+    // In app/Models/User.php
+
 }

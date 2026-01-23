@@ -1,9 +1,10 @@
-<!-- resources/views/head/users/index.blade.php -->
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
             {{ __('User Management') }}
         </h2>
+        <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.css" />
+        <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.tailwindcss.css" />
     </x-slot>
 
     <div class="py-12">
@@ -47,69 +48,12 @@
                                 </svg>
                                 Import CSV
                             </a>
-                           <a href="{{ route('head.codes.index') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-800 focus:outline-none focus:border-indigo-800 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition ml-2">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-    </svg>
-    Manage Codes
-</a>
-
-                            <!-- Modal for Generating Codes -->
-                            <div id="generateCodesModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
-                                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-md p-6">
-                                    <div class="flex justify-between items-center mb-4">
-                                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Generate Guest Codes</h3>
-                                        <button id="closeGenerateCodesModal" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">&times;</button>
-                                    </div>
-                                    <form id="generateCodesForm" method="POST" action="{{ route('head.codes.generate') }}">
-                                        @csrf
-                                        <div class="mb-4">
-                                            <label for="code_count" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Number of Codes</label>
-                                            <input type="number" min="1" max="100" name="code_count" id="code_count" value="1" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required>
-                                        </div>
-                                        <button type="submit" class="w-full inline-flex justify-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-800 focus:outline-none focus:border-indigo-800 focus:ring focus:ring-indigo-300 disabled:opacity-25 transition">
-                                            Generate
-                                        </button>
-                                    </form>
-                                    <div class="mt-6">
-                                        <h4 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">Existing Codes</h4>
-                                        <ul class="max-h-40 overflow-y-auto text-sm">
-                                            @forelse($codes as $code)
-                                                <li class="flex items-center justify-between py-1 border-b border-gray-200 dark:border-gray-700">
-                                                    <span class="font-mono">{{ $code->code }}</span>
-                                                    <span class="text-xs {{ $code->used ? 'text-red-500' : 'text-green-500' }}">
-                                                        {{ $code->used ? 'Used' : 'Unused' }}
-                                                    </span>
-                                                </li>
-                                            @empty
-                                                <li class="text-gray-500 dark:text-gray-400">No codes generated yet.</li>
-                                            @endforelse
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <script>
-                                document.addEventListener('DOMContentLoaded', function() {
-                                    const btn = document.getElementById('generateCodesBtn');
-                                    const modal = document.getElementById('generateCodesModal');
-                                    const closeBtn = document.getElementById('closeGenerateCodesModal');
-
-                                    btn.addEventListener('click', () => modal.classList.remove('hidden'));
-                                    closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
-                                    window.addEventListener('click', function(e) {
-                                        if (e.target === modal) modal.classList.add('hidden');
-                                    });
-                                });
-                            </script>
-                        </div>
-                        <div>
-                            <input type="text" id="searchInput" placeholder="Search users..." class="rounded-md shadow-sm border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        
                         </div>
                     </div>
 
                     <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <table id="users_table" class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-700">
                                 <tr>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
@@ -119,7 +63,7 @@
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700" id="usersTable">
+                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 @foreach($users as $user)
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">
@@ -128,13 +72,10 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                             {{ $user->email }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                                {{ $user->role === 'admin' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : '' }}
-                                                {{ $user->role === 'head' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : '' }}
-                                                {{ $user->role === 'researcher' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : '' }}
-                                                {{ $user->role === 'faculty' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : '' }}">
-                                                {{ ucfirst($user->role) }}
+                                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $user->getRoleClass() }}">
+                                                {{-- Use the Spatie method to get the role name, with a fallback --}}
+                                                {{ ucfirst($user->getRoleNames()->first() ?? 'No Role') }}
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -149,7 +90,7 @@
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 0L19 7.586l-2.828 2.828-4.243-4.243z" />
                                                     </svg>
                                                 </a>
-                                                
+
                                                 <form action="{{ route('head.users.toggle-login', $user) }}" method="POST" class="inline">
                                                     @csrf
                                                     @method('PATCH')
@@ -165,7 +106,7 @@
                                                         @endif
                                                     </button>
                                                 </form>
-                                                
+
                                                 <form action="{{ route('head.users.reset-password', $user) }}" method="POST" class="inline">
                                                     @csrf
                                                     @method('PATCH')
@@ -175,7 +116,7 @@
                                                         </svg>
                                                     </button>
                                                 </form>
-                                                
+
                                                 @if(auth()->id() !== $user->id)
                                                     <form action="{{ route('head.users.destroy', $user) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this user?');">
                                                         @csrf
@@ -199,27 +140,12 @@
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.7.1.js"></script>
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.js"></script>
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.tailwindcss.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const searchInput = document.getElementById('searchInput');
-            const usersTable = document.getElementById('usersTable');
-            const rows = usersTable.querySelectorAll('tr');
-            
-            searchInput.addEventListener('keyup', function(e) {
-                const searchText = e.target.value.toLowerCase();
-                
-                rows.forEach(row => {
-                    const name = row.querySelector('td:first-child').textContent.toLowerCase();
-                    const email = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
-                    const role = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
-                    
-                    if(name.includes(searchText) || email.includes(searchText) || role.includes(searchText)) {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                    }
-                });
-            });
+        $(document).ready(function() {
+            $('#users_table').DataTable();
         });
     </script>
 </x-app-layout>

@@ -63,7 +63,7 @@
             @if($paper->file_path)
             {{-- Only make it a link if it is approved --}}
             @if($paper->approval_status == 'approved')
-                <a href="{{ route('user.research.download', $paper->id) }}" target="_blank" class="text-primary">
+                <a href="{{ route('head.research.download', $paper->id) }}" target="_blank" class="text-primary">
                     {{ $paper->title }}
                 </a>
             @else
@@ -85,11 +85,25 @@
             <td>{{ $paper->research_type ?? 'N/A' }}</td>
             <td>{{ $paper->respondents_count ?? 'N/A' }}</td>
             <td>{{ $paper->created_at->format('M d, Y') }}</td>
-            <td>
-                <a href="{{ route('head.research.generate-report', ['id' => $paper->id]) }}" class="btn btn-success btn-sm" title="View Report">
+<td>
+    <button type="button" class="btn btn-info btn-sm view-btn" title="View Details" 
+            data-id="{{ $paper->id }}" data-bs-toggle="modal" data-bs-target="#viewModal">
+        <i class="fas fa-eye"></i>
+    </button>
+
+    <button type="button" class="btn btn-primary btn-sm edit-btn" title="Edit"
+            data-id="{{ $paper->id }}" data-bs-toggle="modal" data-bs-target="#editModal">
+        <i class="fas fa-edit"></i>
+    </button>
+
+    <button type="button" class="btn btn-danger btn-sm delete-btn" title="Delete"
+            data-id="{{ $paper->id }}">
+        <i class="fas fa-trash"></i>
+    </button>
+                    <a href="{{ route('head.research.generate-report', ['id' => $paper->id]) }}" class="btn btn-success btn-sm" title="View Report">
                     <i class="fas fa-file-pdf"></i> Report
                 </a>
-            </td>
+</td>
             <td>
             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                 @if($paper->approval_status == 'approved') bg-green-100 text-green-800 @endif
@@ -266,14 +280,14 @@
                                             <div class="card-body">
                                             <div class="row mb-3">
     <div class="col-md-12">
-        <label for="research_file" class="form-label">Upload Research Paper (PDF)<span class="text-danger">*</span></label>
+        <label for="research_file" class="form-label">Upload Research Paper (PDF)</label>
         <input type="file" 
                class="filepond" 
                name="research_file" 
                id="research_file" 
                data-max-file-size="10MB" 
                data-allowed-file-types="application/pdf"
-               required>
+               >
         <div class="invalid-feedback">Please upload a PDF file</div>
         <small class="text-muted">Maximum file size: 10MB</small>
     </div>
@@ -398,7 +412,6 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <a href="#" id="download-link" class="btn btn-primary">Download Paper</a>
                 </div>
             </div>
         </div>
@@ -507,13 +520,17 @@
                                     </div>
                                 </div>
 
-                                <div class="row mb-3">
-                                    <div class="col-md-12">
-                                        <label for="edit-keywords" class="form-label">Keywords<span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="edit-keywords" name="keywords" placeholder="Enter keywords separated by commas" required>
-                                        <div class="invalid-feedback">Please enter keywords</div>
-                                    </div>
-                                </div>
+                              <div class="row mb-3">
+    <div class="col-md-12">
+        <label for="edit-keywords" class="form-label">Keywords<span class="text-danger">*</span></label>
+        {{-- FIX: Changed from <input> to <select> to work with the existing Select2 JS --}}
+        <select class="form-control select2-keywords" id="edit-keywords" name="keywords[]" multiple="multiple" required>
+            {{-- Options will be populated by AJAX --}}
+        </select>
+        <small class="text-muted">Type keywords and press Enter to add. Use comma to separate keywords.</small>
+        <div class="invalid-feedback">Please enter at least one keyword</div>
+    </div>
+</div>
                             </div>
                         </div>
 
@@ -550,20 +567,32 @@
                             </div>
                         </div>
 
-                        <div class="card mb-3">
-                            <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0">Research Document</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row mb-3">
-                                    <div class="col-md-12">
-                                        <label for="edit-research_file" class="form-label">Upload Research Paper (PDF)</label>
-                                        <input type="file" class="form-control" id="edit-research_file" name="research_file" accept="application/pdf">
-                                        <small class="text-muted">Leave empty to keep the current file. Maximum file size: 10MB</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                     <div class="card mb-3">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Research Document</h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <div id="current-file-display" class="mb-3" style="display:none;">
+                    <p class="mb-1"><strong>Current File:</strong></p>
+                    <a href="#" id="current-file-link" target="_blank" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-file-pdf me-2"></i><span id="current-file-name"></span>
+                    </a>
+                </div>
+
+                <label for="edit_research_file" class="form-label">Upload New Paper (PDF)</label>
+                <input type="file" 
+                       class="filepond" 
+                       name="research_file" 
+                       id="edit_research_file"
+                       data-max-file-size="10MB"
+                       data-allowed-file-types="application/pdf">
+                <small class="text-muted">To replace the current file, upload a new one. Otherwise, leave this empty.</small>
+            </div>
+        </div>
+    </div>
+</div>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -599,6 +628,7 @@
         FilePondPluginFileValidateType,
         FilePondPluginFileValidateSize
     );
+    let editPond;
 
     // Initialize FilePond
     document.addEventListener('DOMContentLoaded', function() {
@@ -618,8 +648,43 @@
         });
 
         // Create a FilePond instance
-        const pond = FilePond.create(document.querySelector('input[name="research_file"]'));
+         FilePond.create(document.querySelector('#research_file'), {
+            server: {
+                url: '{{ route("head.research.filepond-upload") }}',
+                revert: null, // Revert is handled by removing the hidden input value
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+            }
+        });
+        
+        // Initialize FilePond for the EDIT form with full server configuration
+        const editPondInput = document.querySelector('#edit_research_file');
+        if (editPondInput) {
+            editPond = FilePond.create(editPondInput, {
+                labelIdle: 'Drag & Drop a new PDF or <span class="filepond--label-action">Browse</span>',
+                allowRevert: false, 
+                server: {
+                    process: {
+                        url: '{{ route("head.research.filepond-upload") }}',
+                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                    },
+                    remove: {
+                        // FIX: Use the correct route name for the user role
+                        url: '{{ route("head.filepond.remove") }}',
+                        method: 'DELETE',
+                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                    },
+                    load: {
+                        // FIX: Use the url() helper to create a base URL template.
+                        // FilePond will append the research ID to this string on the client-side.
+                        url: '{{ url("user/filepond/load") }}/',
+                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                    }
+                }
+            });
+        }
     });
+
+
 </script>
     <script>
         $(document).ready(function() {
@@ -639,7 +704,74 @@
             { orderable: false, targets: 11 } // Disable sorting on the Actions column
         ]
     });
+$(document).on('click', '.edit-btn', function() {
+            var id = $(this).data('id');
 
+            // Use the new, secure API route
+            $.ajax({
+                url: `/head/api/research/${id}`, // <-- UPDATED URL
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    // Populate form fields (same as before)
+                    $('#edit-id').val(data.id);
+                    $('#edit-title').val(data.title);
+                    $('#edit-course').val(data.course);
+                    // ... (populate all other text inputs and selects)
+                    $('#edit-year').val(data.year);
+                    $('#edit-category').val(data.category);
+                    $('#edit-program').val(data.program);
+                    $('#edit-researchers').val(data.researchers);
+                    $('#edit-adviser').val(data.adviser);
+                    $('#edit-abstract').val(data.abstract);
+                    $('#edit-research_design').val(data.research_design);
+                    $('#edit-research_design').trigger('change');
+                    setTimeout(function() { $('#edit-research_type').val(data.research_type); }, 100);
+                    $('#edit-respondents_count').val(data.respondents_count);
+                    
+                    // Populate keywords (same as before)
+                    const keywordsSelect = $('#edit-keywords');
+                    keywordsSelect.empty();
+                    if (data.keywords) {
+                        const keywords = data.keywords.split(',').map(k => k.trim());
+                        keywords.forEach(keyword => {
+                            const option = new Option(keyword, keyword, true, true);
+                            keywordsSelect.append(option);
+                        });
+                    }
+                    keywordsSelect.trigger('change');
+
+                     if (editPond) {
+                        editPond.removeFiles();
+                    }
+
+                    // Hide the manual file link display we used before
+                    $('#current-file-display').hide();
+
+                    // If a file path exists, tell FilePond to load it
+                    if (data.file_path && editPond) {
+                        editPond.setOptions({
+                            files: [{
+                                // 'source' is the unique ID that will be sent to the 'load' and 'remove' endpoints
+                                source: data.id,
+                                // 'options.type = local' tells FilePond this is an existing server file
+                                options: {
+                                    type: 'local'
+                                }
+                            }]
+                        });
+                    }
+                    
+                    
+                    // Set the form's action URL
+                    var updateUrl = '{{ url("head/research") }}/' + data.id;
+                    $('#editResearchForm').attr('action', updateUrl);
+                },
+                error: function() {
+                    Swal.fire('Error!', 'Failed to load research details.', 'error');
+                }
+            });
+        });
             // Handle Create Form Submission with SweetAlert
             $('#researchForm').on('submit', function(e) {
                 e.preventDefault();
@@ -880,46 +1012,54 @@ if ($('.dark').length) {
 }
 
             // Delete Research Paper
-            $(document).on('click', '.delete-btn', function() {
-                var id = $(this).data('id');
-                
-                Swal.fire({
-                    title: 'Are you sure?',
-                    text: "You won't be able to revert this!",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#3085d6',
-                    cancelButtonColor: '#d33',
-                    confirmButtonText: 'Yes, delete it!'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        $.ajax({
-                            url: `/head/research/${id}`,
-                            type: 'DELETE',
-                            data: {
-                                "_token": "{{ csrf_token() }}"
-                            },
-                            success: function() {
-                                Swal.fire(
-                                    'Deleted!',
-                                    'Your research paper has been deleted.',
-                                    'success'
-                                ).then(() => {
-                                    window.location.reload();
-                                });
-                            },
-                            error: function() {
-                                Swal.fire(
-                                    'Error!',
-                                    'There was an error deleting the research paper.',
-                                    'error'
-                                );
-                            }
-                        });
-                    }
-                });
-            });
+          // Find the ".delete-btn" click handler inside your script tag
 
+// Delete Research Paper
+$(document).on('click', '.delete-btn', function() {
+    var id = $(this).data('id');
+    
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "You won't be able to revert this!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, delete it!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: `/head/research/${id}`,
+                // FIX: Change type to POST and add _method spoofing
+                type: 'POST',
+                data: {
+                    "_token": "{{ csrf_token() }}",
+                    "_method": "DELETE" // This tells Laravel to treat it as a DELETE request
+                },
+                success: function() {
+                    Swal.fire(
+                        'Deleted!',
+                        'The research paper has been deleted.',
+                        'success'
+                    ).then(() => {
+                        window.location.reload();
+                    });
+                },
+                error: function(xhr) { // Added error handling
+                    let errorMessage = 'There was an error deleting the research paper.';
+                    if (xhr.status === 403) {
+                        errorMessage = 'You do not have permission to delete this item.';
+                    }
+                    Swal.fire(
+                        'Error!',
+                        errorMessage,
+                        'error'
+                    );
+                }
+            });
+        }
+    });
+});
             // Generate Report Button Click
             $(document).on('click', '.report-btn', function() {
                 var id = $(this).data('id');

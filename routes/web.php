@@ -54,7 +54,7 @@ Route::middleware([
     ]);
 
     // Default to user dashboard if no specific role is assigned
-    if ($user->hasRole(['head', 'admin'])) {
+    if ($user->hasRole(['head', 'user'])) {
         return redirect()->route('head.dashboard');
     }
     
@@ -73,37 +73,31 @@ Route::middleware([
 Route::get('/codes', [ResearchCodeController::class, 'index'])->name('codes.index');
     Route::post('/codes/generate', [ResearchCodeController::class, 'generate'])->name('codes.generate');
     Route::get('/codes/all', [ResearchCodeController::class, 'fetchAllCodes'])->name('codes.all');
+    Route::get('/api/research/{research}', [ResearchController::class, 'getResearchData'])->name('api.research.data');
 
 
     // Research Management Routes for Head
-    Route::prefix('research')->name('research.')->group(function () {
-        Route::get('/statistics', [StatisticsController::class, 'index'])->name('statistics');
-        Route::patch('/{research}/status', [ResearchController::class, 'changeStatus'])->name('status');
-        Route::get('/all', [ResearchController::class, 'all'])->name('all');
-        Route::get('/pending', [ResearchController::class, 'pending'])->name('pending');
-        Route::get('/', [ResearchController::class, 'index'])->name('index');
-        Route::get('/browse', [ResearchController::class, 'browse'])->name('browse');
-        Route::post('/store', [ResearchController::class, 'store'])->name('store');
-        Route::get('/approved', [ResearchController::class, 'approved'])->name('approved');
-        Route::get('/{research}/download', [ResearchController::class, 'download'])->name('download');
-        Route::get('/approvals', [ResearchController::class, 'showApprovals'])->name('approvals');
 
-// Route to handle the approval action
- Route::patch('/{research}/approve', [ResearchController::class, 'approve'])->name('approve');
+    // Now, define ONLY your extra, non-resourceful routes for research
+    Route::get('research/generate-report', [ResearchController::class, 'generateReport'])->name('research.generate-report');
+    Route::get('research/statistics', [StatisticsController::class, 'index'])->name('research.statistics');
+    Route::patch('research/{research}/status', [ResearchController::class, 'changeStatus'])->name('research.status');
+    Route::get('research/approvals', [ResearchController::class, 'showApprovals'])->name('research.approvals');
+    Route::patch('research/{research}/approve', [ResearchController::class, 'approve'])->name('research.approve');
+    Route::patch('research/{research}/reject', [ResearchController::class, 'reject'])->name('research.reject');
+    Route::get('research/{research}/download', [ResearchController::class, 'download'])->name('research.download');
+    Route::post('research/filepond-upload', [ResearchController::class, 'filepondUpload'])->name('research.filepond-upload');
+    Route::post('research/filepond-revert', [ResearchController::class, 'filepondRevert'])->name('research.filepond-revert');
+    Route::get('research/all', [ResearchController::class, 'all'])->name('research.all');
+    Route::get('research/pending', [ResearchController::class, 'pending'])->name('research.pending');
 
-// Route to handle the rejection action
-Route::patch('/{research}/reject', [ResearchController::class, 'reject'])->name('reject');
-  
-    });
-    Route::post('/research/filepond-upload', [ResearchController::class, 'filepondUpload'])
-    ->name('research.filepond-upload');
-Route::post('/research/filepond-revert', [ResearchController::class, 'filepondRevert'])
-    ->name('research.filepond-revert');
-     
-        Route::get('/research/generate-report', [ResearchController::class, 'generateReport'])
-    ->name('research.generate-report')
-    ->middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']);
-    // User Management Routes for Head
+   Route::get('/filepond/load/{research}', [ResearchController::class, 'loadFile'])->name('filepond.load');
+
+    // Route to remove an existing file
+    Route::delete('/filepond/remove', [ResearchController::class, 'removeFile'])->name('filepond.remove');
+ Route::resource('research', ResearchController::class);
+    
+
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::get('/users/create', [UserController::class, 'create'])->name('users.create');
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
@@ -139,42 +133,34 @@ Route::middleware([
 Route::get('/codes', [ResearchCodeController::class, 'index'])->name('codes.index');
     Route::post('/codes/generate', [ResearchCodeController::class, 'generate'])->name('codes.generate');
     Route::get('/codes/all', [ResearchCodeController::class, 'fetchAllCodes'])->name('codes.all');
+    Route::get('/statistics', [StatisticsController::class, 'index'])->name('statistics.index');
 
 
-Route::prefix('research')->name('research.')->group(function () {
-    // Page Display Routes
-    Route::get('/', [ResearchController::class, 'index'])->name('index');
-    Route::get('/create', [ResearchController::class, 'create'])->name('create');
-    Route::get('/approvals', [ResearchController::class, 'showApprovals'])->name('approvals');
-    Route::get('/{research}', [ResearchController::class, 'show'])->name('show');
-    Route::get('/{research}/edit', [ResearchController::class, 'edit'])->name('edit');
-    Route::get('/browse', [ResearchController::class, 'browse'])->name('browse');
+    Route::get('/api/research/{research}', [ResearchController::class, 'getResearchData'])->name('api.research.data');
 
-    // Action/Form Submission Routes
-    Route::post('/', [ResearchController::class, 'store'])->name('store');
-    Route::put('/{research}', [ResearchController::class, 'update'])->name('update');
-    Route::delete('/{research}', [ResearchController::class, 'destroy'])->name('destroy');
 
-    // Approval/Rejection Routes
-    Route::patch('/{research}/approve', [ResearchController::class, 'approve'])->name('approve');
-    Route::patch('/{research}/reject', [ResearchController::class, 'reject'])->name('reject');
+    // Research Management Routes for Head
 
-    // File Handling & Report Routes
-    Route::get('/{research}/download', [ResearchController::class, 'download'])->name('download');
-    // Note: The 'generate-report' route is defined OUTSIDE this group, which is correct.
-});
+    // Now, define ONLY your extra, non-resourceful routes for research
+    Route::get('research/generate-report', [ResearchController::class, 'generateReport'])->name('research.generate-report');
+    Route::get('research/statistics', [StatisticsController::class, 'index'])->name('research.statistics');
+    Route::patch('research/{research}/status', [ResearchController::class, 'changeStatus'])->name('research.status');
+    Route::get('research/approvals', [ResearchController::class, 'showApprovals'])->name('research.approvals');
+    Route::patch('research/{research}/approve', [ResearchController::class, 'approve'])->name('research.approve');
+    Route::patch('research/{research}/reject', [ResearchController::class, 'reject'])->name('research.reject');
+    Route::get('research/{research}/download', [ResearchController::class, 'download'])->name('research.download');
+    Route::post('research/filepond-upload', [ResearchController::class, 'filepondUpload'])->name('research.filepond-upload');
+    Route::post('research/filepond-revert', [ResearchController::class, 'filepondRevert'])->name('research.filepond-revert');
+    Route::get('research/all', [ResearchController::class, 'all'])->name('research.all');
+    Route::get('research/pending', [ResearchController::class, 'pending'])->name('research.pending');
+        Route::get('research/browse', [ResearchController::class, 'browse'])->name('research.browse');
 
-// The FilePond and Report routes should be right after the group, still inside the user section
-Route::post('/research/filepond-upload', [ResearchController::class, 'filepondUpload'])
-    ->name('research.filepond-upload');
+   Route::get('/filepond/load/{research}', [ResearchController::class, 'loadFile'])->name('filepond.load');
 
-Route::post('/research/filepond-revert', [ResearchController::class, 'filepondRevert'])
-    ->name('research.filepond-revert');
-     
-Route::get('/research/generate-report', [ResearchController::class, 'generateReport'])
-    ->name('research.generate-report'); // Full name will be user.research.generate-report
-// ...
+    // Route to remove an existing file
+    Route::delete('/filepond/remove', [ResearchController::class, 'removeFile'])->name('filepond.remove');
 
+ Route::resource('research', ResearchController::class);
 
     Route::get('/statistics', [StatisticsController::class, 'index'])->name('statistics.index');
     Route::prefix('reports')->name('reports.')->group(function () {
@@ -187,3 +173,16 @@ Route::get('/research/generate-report', [ResearchController::class, 'generateRep
 });
 
 
+Route::middleware([
+    'auth:sanctum',
+    config('jetstream.auth_session'),
+    'verified'
+])->group(function () {
+    // Report generation route - available to all authenticated users
+    Route::get('/research/generate-report', [App\Http\Controllers\StatisticsController::class, 'generateReport'])
+        ->name('research.generate-report');
+        Route::get('/research-statistics/generate-report', [App\Http\Controllers\StatisticsController::class, 'generateReport'])
+        ->name('statistics.generate-report');
+            Route::resource('research', ResearchController::class);
+
+});

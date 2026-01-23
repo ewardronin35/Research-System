@@ -64,100 +64,104 @@
 
                         {{-- Pending Tab Pane --}}
                         <div class="tab-pane fade show active" id="pending" role="tabpanel">
-                            <div class="table-responsive">
-                                <table class="table table-hover table-bordered" id="pendingTable" style="width:100%">
-                                    <thead>
-                                        <tr>
-                                            <th>Title</th>
-                                            <th>Course</th>
-                                            <th>Researchers</th>
-                                            <th>Date Submitted</th>
-                                            <th class="text-center">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @forelse($pendingResearch as $paper)
+                            @if($pendingResearch->isNotEmpty())
+                                <div class="table-responsive">
+                                    <table class="table table-hover table-bordered" id="pendingTable" style="width:100%">
+                                        <thead>
                                             <tr>
-                                                <td>{{ Str::limit($paper->title, 40) }}</td>
-                                                <td>{{ $paper->course }}</td>
-                                                <td>{{ Str::limit($paper->researchers, 30) }}</td>
-                                                <td>{{ $paper->created_at->format('M d, Y') }}</td>
-                                                <td class="text-center">
-                                                    <div class="btn-group" role="group">
-                                                        <form action="{{ route('head.research.approve', $paper) }}" method="POST" class="d-inline approval-form">@csrf @method('PATCH')<button type="submit" class="btn btn-success btn-sm" title="Approve"><i class="fas fa-check"></i></button></form>
-                                                        <form action="{{ route('head.research.reject', $paper) }}" method="POST" class="d-inline rejection-form">@csrf @method('PATCH')<button type="submit" class="btn btn-danger btn-sm" title="Reject"><i class="fas fa-times"></i></button></form>
-                                                        <a href="{{ Storage::url($paper->file_path) }}" target="_blank" class="btn btn-info btn-sm" title="View PDF"><i class="fas fa-eye"></i></a>
-                                                    </div>
-                                                </td>
+                                                <th>Title</th>
+                                                <th>Course</th>
+                                                <th>Researchers</th>
+                                                <th>Date Submitted</th>
+                                                <th class="text-center">Actions</th>
                                             </tr>
-                                        @empty
-                                            <tr><td colspan="5" class="text-center text-muted py-4">No pending research papers.</td></tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($pendingResearch as $paper)
+                                                <tr>
+                                                    <td>{{ Str::limit($paper->title, 40) }}</td>
+                                                    <td>{{ $paper->course }}</td>
+                                                    <td>{{ Str::limit($paper->researchers, 30) }}</td>
+                                                    <td>{{ $paper->created_at->format('M d, Y') }}</td>
+                                                    <td class="text-center">
+                                                        <div class="btn-group" role="group">
+                                                            <form action="{{ route('head.research.approve', $paper) }}" method="POST" class="d-inline approval-form">@csrf @method('PATCH')<button type="submit" class="btn btn-success btn-sm" title="Approve"><i class="fas fa-check"></i></button></form>
+                                                            <form action="{{ route('head.research.reject', $paper) }}" method="POST" class="d-inline rejection-form">@csrf @method('PATCH')<button type="submit" class="btn btn-danger btn-sm" title="Reject"><i class="fas fa-times"></i></button></form>
+                                                            <a href="{{ Storage::url($paper->file_path) }}" target="_blank" class="btn btn-info btn-sm" title="View PDF"><i class="fas fa-eye"></i></a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @else
+                                <div class="text-center text-muted py-4">No pending research papers.</div>
+                            @endif
                         </div>
 
                         {{-- Approved Tab Pane --}}
                         <div class="tab-pane fade" id="approved" role="tabpanel">
-                            <div class="table-responsive">
-                                <table class="table table-hover table-bordered" id="approvedTable" style="width:100%">
-                                    <thead>
-                                        <tr>
-                                            <th>Title</th>
-                                            <th>Course</th>
-                                            <th>Researchers</th>
-                                            <th>Date Approved</th>
-                                            <th class="text-center">View</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @forelse($approvedResearch as $paper)
+                             @if($approvedResearch->isNotEmpty())
+                                <div class="table-responsive">
+                                    <table class="table table-hover table-bordered" id="approvedTable" style="width:100%">
+                                        <thead>
                                             <tr>
-                                                <td>{{ Str::limit($paper->title, 40) }}</td>
-                                                <td>{{ $paper->course }}</td>
-                                                <td>{{ Str::limit($paper->researchers, 30) }}</td>
-                                                <td>{{ $paper->updated_at->format('M d, Y') }}</td>
-                                                <td class="text-center"><a href="{{ Storage::url($paper->file_path) }}" target="_blank" class="btn btn-info btn-sm" title="View PDF"><i class="fas fa-eye"></i></a></td>
+                                                <th>Title</th>
+                                                <th>Course</th>
+                                                <th>Researchers</th>
+                                                <th>Date Approved</th>
+                                                <th class="text-center">View</th>
                                             </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="5" class="text-center text-muted py-4">No approved research papers.</td>
-                                            </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($approvedResearch as $paper)
+                                                <tr>
+                                                    <td>{{ Str::limit($paper->title, 40) }}</td>
+                                                    <td>{{ $paper->course }}</td>
+                                                    <td>{{ Str::limit($paper->researchers, 30) }}</td>
+                                                    <td>{{ $paper->updated_at->format('M d, Y') }}</td>
+                                                    <td class="text-center"><a href="{{ Storage::url($paper->file_path) }}" target="_blank" class="btn btn-info btn-sm" title="View PDF"><i class="fas fa-eye"></i></a></td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                             @else
+                                <div class="text-center text-muted py-4">No approved research papers.</div>
+                             @endif
                         </div>
 
                         {{-- Rejected Tab Pane --}}
                         <div class="tab-pane fade" id="rejected" role="tabpanel">
-                            <div class="table-responsive">
-                                <table class="table table-hover table-bordered" id="rejectedTable" style="width:100%">
-                                    <thead>
-                                        <tr>
-                                            <th>Title</th>
-                                            <th>Course</th>
-                                            <th>Researchers</th>
-                                            <th>Date Rejected</th>
-                                            <th class="text-center">View</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @forelse($rejectedResearch as $paper)
+                            @if($rejectedResearch->isNotEmpty())
+                                <div class="table-responsive">
+                                    <table class="table table-hover table-bordered" id="rejectedTable" style="width:100%">
+                                        <thead>
                                             <tr>
-                                                <td>{{ Str::limit($paper->title, 40) }}</td>
-                                                <td>{{ $paper->course }}</td>
-                                                <td>{{ Str::limit($paper->researchers, 30) }}</td>
-                                                <td>{{ $paper->updated_at->format('M d, Y') }}</td>
-                                                <td class="text-center"><a href="{{ Storage::url($paper->file_path) }}" target="_blank" class="btn btn-info btn-sm" title="View PDF"><i class="fas fa-eye"></i></a></td>
+                                                <th>Title</th>
+                                                <th>Course</th>
+                                                <th>Researchers</th>
+                                                <th>Date Rejected</th>
+                                                <th class="text-center">View</th>
                                             </tr>
-                                        @empty
-                                            <tr><td colspan="5" class="text-center text-muted py-4">No rejected research papers.</td></tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($rejectedResearch as $paper)
+                                                <tr>
+                                                    <td>{{ Str::limit($paper->title, 40) }}</td>
+                                                    <td>{{ $paper->course }}</td>
+                                                    <td>{{ Str::limit($paper->researchers, 30) }}</td>
+                                                    <td>{{ $paper->updated_at->format('M d, Y') }}</td>
+                                                    <td class="text-center"><a href="{{ Storage::url($paper->file_path) }}" target="_blank" class="btn btn-info btn-sm" title="View PDF"><i class="fas fa-eye"></i></a></td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @else
+                                <div class="text-center text-muted py-4">No rejected research papers.</div>
+                            @endif
                         </div>
 
                     </div>
@@ -176,18 +180,16 @@
     {{-- Custom Scripts --}}
     <script>
         $(function () {
-            // Helper function to initialize a DataTable, avoiding re-initialization
-            const initDataTable = (tableId) => {
-                if ($.fn.DataTable.isDataTable(tableId)) {
-                    // If it exists, redraw it to ensure it's up-to-date
-                    $(tableId).DataTable().draw();
-                    return;
+            // Helper function to initialize a DataTable if it exists and hasn't been initialized
+            const initDataTable = (tableSelector) => {
+                // Check if the table element exists in the DOM first
+                if ($(tableSelector).length && !$.fn.DataTable.isDataTable(tableSelector)) {
+                    $(tableSelector).DataTable({
+                        responsive: true,
+                        order: [[3, 'desc']], // Default sort by the 4th column (date)
+                        columnDefs: [{ orderable: false, targets: -1 }] // Disable sorting on the last column (actions)
+                    });
                 }
-                $(tableId).DataTable({
-                    responsive: true,
-                    order: [[3, 'desc']],
-                    columnDefs: [{ orderable: false, targets: -1 }]
-                });
             };
 
             // Initialize the first visible table on page load
@@ -196,15 +198,12 @@
             // Use Bootstrap's tab-shown event to initialize other tables only when they become visible
             $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
                 const targetTab = $(e.target).attr('data-bs-target');
-                if (targetTab === '#approved') {
-                    initDataTable('#approvedTable');
-                } else if (targetTab === '#rejected') {
-                    initDataTable('#rejectedTable');
-                }
+                const tableSelector = targetTab + ' table'; // e.g., '#approved table'
+                initDataTable(tableSelector);
             });
 
             // SweetAlert2 confirmation for approval/rejection forms
-            $('form.approval-form, form.rejection-form').on('submit', function(e) {
+            $('body').on('submit', 'form.approval-form, form.rejection-form', function(e) {
                 e.preventDefault();
                 const form = this;
                 const action = $(form).hasClass('approval-form') ? 'approve' : 'reject';

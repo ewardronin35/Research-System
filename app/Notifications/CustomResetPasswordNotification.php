@@ -16,16 +16,22 @@ class CustomResetPasswordNotification extends ResetPassword
      */
     public function toMail($notifiable)
     {
+        // The URL for the password reset link
+        $resetUrl = url(config('app.url').route('password.reset', [
+            'token' => $this->token,
+            'email' => $notifiable->getEmailForPasswordReset(),
+        ], false));
+
+        // Get the password expiration time in minutes
+        $expireMinutes = config('auth.passwords.'.config('auth.defaults.passwords').'.expire');
+
         return (new MailMessage)
-            ->subject(Lang::get('Reset Your Password - ' . config('app.name')))
-            ->greeting('Hello ' . $notifiable->name . '!')
-            ->line('You are receiving this email because we received a password reset request for your account.')
-            ->line('This link will expire in 60 minutes.')
-            ->action('Reset Password', url(config('app.url').route('password.reset', [
-                'token' => $this->token,
-                'email' => $notifiable->getEmailForPasswordReset(),
-            ], false)))
-            ->line('If you did not request a password reset, no further action is required.')
-            ->line('Thank you for using our application!');
+                    ->subject(Lang::get('Reset Your Password - ' . config('app.name')))
+                    // Point to your new Blade view and pass data to it
+                    ->markdown('emails.custom-password-reset', [
+                        'user' => $notifiable,
+                        'resetUrl' => $resetUrl,
+                        'expireMinutes' => $expireMinutes
+                    ]);
     }
 }

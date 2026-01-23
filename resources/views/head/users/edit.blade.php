@@ -45,17 +45,20 @@
                         </div>
 
                         <!-- Can Login -->
-                        <div class="mt-4">
-                            <label for="can_login" class="inline-flex items-center">
-                                <input id="can_login" type="checkbox" class="rounded border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" 
-                                       name="can_login" {{ old('can_login', $user->can_login) ? 'checked' : '' }}
-                                       {{ $user->id === auth()->id() ? 'disabled' : '' }}>
-                                <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">{{ __('Allow user to login') }}</span>
-                            </label>
-                            @if($user->id === auth()->id())
-                                <p class="text-yellow-500 text-xs mt-1">{{ __('You cannot disable login for your own account.') }}</p>
-                            @endif
-                        </div>
+                       <div class="mt-4">
+    <label for="can_login" class="inline-flex items-center">
+        {{-- ADD THIS HIDDEN INPUT --}}
+        <input type="hidden" name="can_login" value="0">
+        
+        <input id="can_login" type="checkbox" class="rounded border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" 
+               name="can_login" value="1" {{ old('can_login', $user->can_login) ? 'checked' : '' }}
+               {{ $user->id === auth()->id() ? 'disabled' : '' }}>
+        <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">{{ __('Allow user to login') }}</span>
+    </label>
+    @if($user->id === auth()->id())
+        <p class="text-yellow-500 text-xs mt-1">{{ __('You cannot disable login for your own account.') }}</p>
+    @endif
+</div>
 
                         <div class="flex items-center justify-end mt-4">
                             <a href="{{ route('head.users.index') }}" class="inline-flex items-center px-4 py-2 bg-gray-300 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-800 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-400 dark:hover:bg-gray-600 active:bg-gray-500 dark:active:bg-gray-500 focus:outline-none focus:border-gray-500 focus:ring focus:ring-gray-300 disabled:opacity-25 transition mr-2">

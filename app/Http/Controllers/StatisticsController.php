@@ -92,6 +92,134 @@ class StatisticsController extends Controller
      *
      * @return \Illuminate\View\View
      */
+   private function getPdfStyles()
+{
+    return '
+    <style>
+        h1 {
+            font-family: times; font-size: 18pt; font-weight: bold; text-align: center;
+            color: #4b0082; margin-bottom: 5px;
+        }
+        h2 {
+            font-family: helvetica; font-size: 11pt; text-align: center;
+            margin-bottom: 10px; color: #555555;
+        }
+        h3 {
+            font-family: times; font-size: 15pt; font-weight: bold;
+            color: #4b0082; margin-top: 15px; margin-bottom: 8px;
+            border-bottom: 1px solid #cccccc; padding-bottom: 3px;
+        }
+        .parameters-block {
+            font-size: 9pt; text-align: center; color: #333;
+            border: 1px solid #ddd; background-color: #f9f9f9;
+            padding: 8px; margin-bottom: 15px; border-radius: 5px;
+        }
+        table {
+            width: 100%; border-collapse: collapse; margin-bottom: 15px;
+        }
+        th {
+            background-color: #4b0082; color: white; font-weight: bold;
+            padding: 8px; text-align: center; font-size: 10pt;
+        }
+        td {
+            padding: 6px; font-size: 9.5pt; border: 1px solid #dddddd;
+            word-wrap: break-word;
+        }
+        tr:nth-child(even) {
+            background-color: #f5f5f5;
+        }
+        .centered { text-align: center; }
+        .text-left { text-align: left; }
+    </style>';
+}
+private function generatePdfParametersBlock($request)
+{
+    $params = [];
+    if ($request->filled('course')) {
+        $params[] = '<b>Course(s):</b> ' . htmlspecialchars(is_array($request->course) ? implode(', ', $request->course) : $request->course);
+    }
+    if ($request->filled('year_start') || $request->filled('year_end')) {
+        $start = $request->input('year_start', 'Any');
+        $end = $request->input('year_end', 'Any');
+        $params[] = "<b>Year Range:</b> " . htmlspecialchars($start) . " - " . htmlspecialchars($end);
+    }
+    if ($request->filled('research_design')) {
+        $params[] = '<b>Design(s):</b> ' . htmlspecialchars(is_array($request->research_design) ? implode(', ', $request->research_design) : $request->research_design);
+    }
+    if ($request->filled('category')) {
+        $params[] = '<b>Category:</b> ' . htmlspecialchars(is_array($request->category) ? implode(', ', $request->category) : $request->category);
+    }
+
+    if (empty($params)) {
+        return '<div class="parameters-block">Filters: None Applied</div>';
+    }
+
+    return '<div class="parameters-block">' . implode(' &nbsp; | &nbsp; ', $params) . '</div>';
+}
+private function generatePdfTitleBlock($reportTitle)
+{
+    return '
+    <h1>' . htmlspecialchars($reportTitle) . '</h1>
+    <h2>Generated on: ' . date('F d, Y') . ' by ' . htmlspecialchars(Auth::user()->name) . '</h2>';
+}
+
+/**
+ * Generates the detailed list of research papers as an HTML table.
+ *
+ * @param \Illuminate\Database\Eloquent\Collection $researches The collection of research models.
+ * @param array $fields The fields to include in the table.
+ * @return string The HTML for the detailed list table.
+ */
+private function generateDetailedListHtmlTable($researches, $fields)
+{
+    $headerLabels = [
+        'id' => 'ID', 'title' => 'Title', 'course' => 'Course', 'researchers' => 'Researchers',
+        'adviser' => 'Adviser', 'year' => 'Year', 'category' => 'Category', 'program' => 'Program',
+        'research_design' => 'Research Design', 'research_type' => 'Research Type',
+        'respondents_count' => 'Respondents', 'abstract' => 'Abstract', 'keywords' => 'Keywords'
+    ];
+
+    $fieldWidthRatios = [
+        'title' => 3, 'abstract' => 3, 'researchers' => 2, 'keywords' => 1.5, 'adviser' => 1.5,
+        'course' => 1.5, 'research_design' => 1.5, 'year' => 0.8, 'category' => 1.2,
+        'program' => 1.2, 'research_type' => 1.5, 'respondents_count' => 1, 'id' => 0.8
+    ];
+
+    $totalRatio = 0;
+    foreach ($fields as $field) {
+        $totalRatio += $fieldWidthRatios[$field] ?? 1;
+    }
+
+    $html = '<h3>Detailed Research List</h3><table border="1">';
+    $html .= '<thead><tr><th width="5%">No.</th>';
+
+    $remainingWidth = 95;
+    foreach ($fields as $field) {
+        $ratio = $fieldWidthRatios[$field] ?? 1;
+        $width = round(($ratio / $totalRatio) * $remainingWidth, 1);
+        $html .= '<th width="' . $width . '%">' . ($headerLabels[$field] ?? ucfirst($field)) . '</th>';
+    }
+    $html .= '</tr></thead><tbody>';
+
+    foreach ($researches as $index => $research) {
+        $html .= '<tr><td class="centered">' . ($index + 1) . '</td>';
+        foreach ($fields as $field) {
+            $value = $research->$field ?? '';
+            $maxLength = match($field) {
+                'title' => 80, 'abstract' => 100, 'researchers' => 60, default => 40
+            };
+            if (strlen($value) > $maxLength) {
+                $value = substr($value, 0, $maxLength - 3) . '...';
+            }
+            $class = in_array($field, ['year', 'respondents_count', 'id']) ? 'centered' : 'text-left';
+            $html .= '<td class="' . $class . '">' . htmlspecialchars($value) . '</td>';
+        }
+        $html .= '</tr>';
+    }
+
+    $html .= '</tbody></table>';
+    return $html;
+}
     public function index()
     {
         $prefix = Auth::user()->hasRole('head') ? 'head' : 'user';
@@ -668,111 +796,63 @@ class StatisticsController extends Controller
      * @param string $reportTitle
      * @return \Illuminate\Http\Response
      */
-    private function generateEnhancedPdfReport($researches, $request, $type, $reportTitle)
-    {
-        // Create new PDF document using custom class
-        $pdf = new ReportPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
-        
-        // Set document information
-        $pdf->SetCreator(PDF_CREATOR);
-        $pdf->SetAuthor(Auth::user()->name);
-        $pdf->SetTitle($reportTitle);
-        $pdf->SetSubject('Research Statistics Report');
-        $pdf->SetKeywords('Research, Statistics, ' . $type);
-        
-        // Set header and footer fonts
-        $pdf->setHeaderFont(Array('times', 'B', 14));
-        $pdf->setFooterFont(Array('helvetica', '', 8));
-        
-        // Set default monospaced font
-        $pdf->SetDefaultMonospacedFont('courier');
-        
-        // ADJUSTMENT: Increase margins for better visibility
-        $pdf->SetMargins(15, 45, 15); // Increased top margin
-        $pdf->SetHeaderMargin(10);
-        $pdf->SetFooterMargin(10);
-        
-        // Set auto page breaks with more space at bottom
-        $pdf->SetAutoPageBreak(TRUE, 20);
-        
-        // Add a page
-        $pdf->AddPage();
-        
-        // Set font for title
-        $pdf->SetFont('times', 'B', 16);
-        
-        // Add title and subtitle with styling
-        $titleHtml = '
-        <style>
-            h1 {
-                font-family: times;
-                font-size: 16pt;
-                font-weight: bold;
-                text-align: center;
-                color: #4b0082;
-                margin-bottom: 5px;
-            }
-            h2 {
-                font-family: helvetica;
-                font-size: 12pt;
-                text-align: center;
-                margin-bottom: 15px;
-                color: #555555;
-            }
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-top: 10px;
-                margin-bottom: 15px;
-            }
-            th {
-                background-color: #4b0082;
-                color: white;
-                font-weight: bold;
-                padding: 5px;
-                text-align: center;
-            }
-            td {
-                padding: 5px;
-                border: 1px solid #dddddd;
-            }
-            tr:nth-child(even) {
-                background-color: #f9f9f9;
-            }
-        </style>
-        
-        <h1>' . htmlspecialchars($reportTitle) . '</h1>
-        <h2>Generated on: ' . date('F d, Y') . ' by ' . htmlspecialchars(Auth::user()->name) . '</h2>';
-        
-        $pdf->writeHTML($titleHtml, true, false, true, false, '');
-        
-        // Generate content based on report type
-        switch ($type) {
-            case 'course':
-                $this->generateEnhancedCourseReportContent($pdf, $researches, $request);
-                break;
-            case 'year':
-                $this->generateEnhancedYearReportContent($pdf, $researches, $request);
-                break;
-            case 'methodology':
-                $this->generateEnhancedMethodologyReportContent($pdf, $researches, $request);
-                break;
-            case 'adviser':
-                $this->generateEnhancedAdviserReportContent($pdf, $researches, $request);
-                break;
-            case 'abstract':
-                $this->generateEnhancedAbstractReportContent($pdf, $researches, $request);
-                break;
-            default:
-                $this->generateEnhancedFullReportContent($pdf, $researches, $request);
-                break;
-        }
+private function generateEnhancedPdfReport($researches, $request, $type, $reportTitle)
+{
+    $pdf = new ReportPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
     
-        // Close and output PDF document
+    // Set document information
+    $pdf->SetCreator(PDF_CREATOR);
+    $pdf->SetAuthor(Auth::user()->name);
+    $pdf->SetTitle($reportTitle);
+    $pdf->SetSubject('Research Statistics Report');
+    $pdf->SetKeywords('Research, Statistics, ' . $type);
+    
+    $pdf->setHeaderFont(Array('times', 'B', 14));
+    $pdf->setFooterFont(Array('helvetica', '', 8));
+    $pdf->SetDefaultMonospacedFont('courier');
+    
+    $pdf->SetMargins(15, 45, 15);
+    $pdf->SetHeaderMargin(10);
+    $pdf->SetFooterMargin(10);
+    $pdf->SetAutoPageBreak(TRUE, 20);
+    
+    $pdf->AddPage();
+    
+    // The 'abstract' report is highly custom; handle it separately.
+   if ($type === 'abstract') {
+        $this->generateEnhancedAbstractReportContent($pdf, $researches, $request);
         $pdfName = Str::slug($reportTitle) . '_' . date('YmdHis') . '.pdf';
         return $pdf->Output($pdfName, 'D');
     }
 
+    // --- UNIFIED HTML GENERATION FOR ALL OTHER REPORTS ---
+
+    // 1. Get standardized styles
+    $html = $this->getPdfStyles();
+    
+    // 2. Get standardized title block
+    $html .= $this->generatePdfTitleBlock($reportTitle);
+    
+    // 3. (NEW) Get the parameters block
+    $html .= $this->generatePdfParametersBlock($request);
+    
+    // 4. Get the specific content for the report type
+    $reportContent = match($type) {
+        'course'      => $this->generateEnhancedCourseReportContent($researches, $request),
+        'year'        => $this->generateEnhancedYearReportContent($researches, $request),
+        'methodology' => $this->generateEnhancedMethodologyReportContent($researches, $request),
+        'adviser'     => $this->generateEnhancedAdviserReportContent($researches, $request),
+        default       => $this->generateEnhancedFullReportContent($researches, $request),
+    };
+    
+    $html .= $reportContent;
+
+    // 5. Write the final HTML to the PDF
+    $pdf->writeHTML($html, true, false, true, false, '');
+
+    $pdfName = Str::slug($reportTitle) . '_' . date('YmdHis') . '.pdf';
+    return $pdf->Output($pdfName, 'D');
+}
     /**
      * Generate enhanced CSV report with improved structure.
      *
@@ -1225,51 +1305,23 @@ class StatisticsController extends Controller
      * @param \Illuminate\Database\Eloquent\Collection $researches
      * @param \Illuminate\Http\Request $request
      */
-    private function generateEnhancedCourseReportContent($pdf, $researches, $request)
-    {
-        // Overview section
-        $pdf->SetFont('times', 'B', 14);
-        $pdf->Cell(0, 10, 'Course Distribution Overview', 0, 1, 'L');
-        $pdf->SetFont('times', '', 11);
-        $pdf->Ln(2);
-        
-        // Group by course
-        $courseData = $researches->groupBy('course')
-            ->map(function ($group) {
-                return $group->count();
-            })->sortDesc();
-        
-        // Course distribution table
-        $pdf->SetFillColor(75, 0, 130); // Indigo (matches PILAR color theme)
-        $pdf->SetTextColor(255, 255, 255); // White text for header
-        $pdf->SetFont('helvetica', 'B', 10);
-        $pdf->Cell(100, 8, 'Course', 1, 0, 'C', true);
-        $pdf->Cell(40, 8, 'Number of Papers', 1, 0, 'C', true);
-        $pdf->Cell(40, 8, 'Percentage', 1, 1, 'C', true);
-        
-        // Reset text color to black for data rows
-        $pdf->SetTextColor(0, 0, 0);
-        $pdf->SetFont('helvetica', '', 10);
-        
-        $totalPapers = $researches->count();
-        $rowCount = 0;
-        
-        foreach ($courseData as $course => $count) {
-            // Alternate row background color for better readability
-            $fillColor = ($rowCount % 2 === 0) ? false : true;
-            $fillColorValue = ($rowCount % 2 === 0) ? 255 : 240;
-            $pdf->SetFillColor($fillColorValue, $fillColorValue, $fillColorValue);
-            
-            $pdf->Cell(90, 8, $course ?: 'Not Specified', 1, 0, 'L', $fillColor);
-            $pdf->Cell(40, 8, $count, 1, 0, 'C', $fillColor);
-            $pdf->Cell(40, 8, round(($count / $totalPapers) * 100, 1) . '%', 1, 1, 'C', $fillColor);
-            
-            $rowCount++;
-        }
-        
-        // Add detailed list of papers by adviser
-        $this->addDetailedResearchList($pdf, $researches, $request);
+   private function generateEnhancedCourseReportContent($researches, $request)
+{
+    $html = '<h3>Course Distribution Overview</h3>';
+    $groupedData = $researches->groupBy('course')->map->count()->sortDesc();
+    $total = $researches->count();
+
+    $html .= '<table border="1"><thead><tr><th width="60%">Course</th><th width="20%"># of Papers</th><th width="20%">Percentage</th></tr></thead><tbody>';
+    foreach ($groupedData as $item => $count) {
+        $percentage = round(($count / $total) * 100, 1);
+        $html .= '<tr><td>' . ($item ?: 'Not Specified') . '</td><td class="centered">' . $count . '</td><td class="centered">' . $percentage . '%</td></tr>';
     }
+    $html .= '</tbody></table>';
+
+    $fields = $request->input('fields', ['title', 'course', 'year', 'researchers', 'adviser']);
+    $html .= $this->generateDetailedListHtmlTable($researches, $fields);
+    return $html;
+}
 
     /**
      * Generate enhanced content for abstract report in PDF.
@@ -1378,221 +1430,14 @@ class StatisticsController extends Controller
      * @param \Illuminate\Database\Eloquent\Collection $researches
      * @param \Illuminate\Http\Request $request
      */
-    private function generateEnhancedFullReportContent($pdf, $researches, $request)
-    {
-        // Get selected fields or use all available fields if there's an issue
-        $allPossibleFields = [
-            'id', 'title', 'course', 'researchers', 'adviser', 'year', 
-            'abstract', 'keywords', 'program', 'category', 'research_design', 
-            'research_type', 'respondents_count'
-        ];
-        
-        $fields = $request->input('fields', ['title', 'course', 'researchers', 'adviser', 'year']);
-        
-        // Make sure $fields is always an array
-        if (!is_array($fields)) {
-            $fields = explode(',', $fields);
-        }
-        
-        // Add report statistics
-        $statistics = '
-        <style>
-            .stats-container {
-                background-color: #f9f9f9;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                padding: 10px;
-                margin-bottom: 20px;
-            }
-            .stats-title {
-                font-weight: bold;
-                font-size: 12pt;
-                color: #4b0082;
-                margin-bottom: 5px;
-            }
-            .stats-item {
-                margin-bottom: 5px;
-            }
-            .stats-label {
-                font-weight: bold;
-                display: inline-block;
-                width: 170px;
-            }
-            .stats-value {
-                font-weight: bold;
-                color: #4b0082;
-            }
-        </style>
-        
-        <div class="stats-container">
-            <div class="stats-title">Report Statistics</div>
-            <div class="stats-item">
-                <span class="stats-label">Total Research Papers:</span>
-                <span class="stats-value">' . $researches->count() . '</span>
-            </div>
-            <div class="stats-item">
-                <span class="stats-label">Unique Courses:</span>
-                <span class="stats-value">' . $researches->pluck('course')->unique()->count() . '</span>
-            </div>
-            <div class="stats-item">
-                <span class="stats-label">Year Range:</span>
-                <span class="stats-value">' . $researches->min('year') . ' - ' . $researches->max('year') . '</span>
-            </div>
-            <div class="stats-item">
-                <span class="stats-label">Generated On:</span>
-                <span class="stats-value">' . date('F d, Y h:i A') . '</span>
-            </div>
-        </div>';
-        
-        $pdf->writeHTML($statistics, true, false, true, false, '');
-        
-        // Use a completely HTML-based approach for better table rendering
-        $html = '
-        <style>
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 15px;
-            }
-            th {
-                background-color: #4b0082;
-                color: white;
-                font-weight: bold;
-                padding: 4px;
-                text-align: center;
-                font-size: 9pt;
-            }
-            td {
-                padding: 4px;
-                font-size: 8pt;
-                border: 1px solid #dddddd;
-                word-wrap: break-word;
-            }
-            tr:nth-child(even) {
-                background-color: #f5f5f5;
-            }
-            .centered {
-                text-align: center;
-            }
-            .text-left {
-                text-align: left;
-            }
-            thead {
-                display: table-header-group;
-            }
-            tbody {
-                display: table-row-group;
-            }
-        </style>';
-        
-        $html .= '<table border="1" cellpadding="2" cellspacing="0">';
-        $html .= '<thead><tr><th width="5%">No.</th>';
-        
-        // Get field labels
-        $headerLabels = [
-            'id' => 'ID',
-            'title' => 'Title',
-            'course' => 'Course',
-            'researchers' => 'Researchers',
-            'adviser' => 'Adviser',
-            'year' => 'Year',
-            'category' => 'Category',
-            'program' => 'Program',
-            'research_design' => 'Research Design',
-            'research_type' => 'Research Type',
-            'respondents_count' => 'Respondents',
-            'abstract' => 'Abstract',
-            'keywords' => 'Keywords'
-        ];
-        
-        // Calculate column widths based on field type
-        $remainingWidth = 95; // 95% after the 5% for No. column
-        $columnCount = count($fields);
-        
-        // Predefined width ratios for different field types
-        $fieldWidthRatios = [
-            'title' => 3,
-            'abstract' => 3,
-            'researchers' => 2,
-            'keywords' => 1.5,
-            'adviser' => 1.5,
-            'course' => 1.5,
-            'research_design' => 1.5,
-            'year' => 0.8,
-            'category' => 1.2,
-            'program' => 1.2,
-            'research_type' => 1.5,
-            'respondents_count' => 1,
-            'id' => 0.8
-        ];
-        
-        // Calculate total ratio
-        $totalRatio = 0;
-        foreach ($fields as $field) {
-            $totalRatio += $fieldWidthRatios[$field] ?? 1;
-        }
-        
-        // Calculate actual widths
-        $fieldWidths = [];
-        foreach ($fields as $field) {
-            $ratio = $fieldWidthRatios[$field] ?? 1;
-            $fieldWidths[$field] = round(($ratio / $totalRatio) * $remainingWidth, 1);
-            $html .= '<th width="' . $fieldWidths[$field] . '%">' . ($headerLabels[$field] ?? ucfirst($field)) . '</th>';
-        }
-        
-        $html .= '</tr></thead>';
-        $html .= '<tbody>';
-        
-        // Add data rows
-        foreach ($researches as $index => $research) {
-            $html .= '<tr>';
-            $html .= '<td class="centered">' . ($index + 1) . '</td>';
-            
-            foreach ($fields as $field) {
-                $value = $research->$field ?? '';
-                
-                // Truncate long text values appropriately for PDF display
-                $maxLength = match($field) {
-                    'title' => 80,
-                    'abstract' => 100,
-                    'researchers' => 60,
-                    'keywords' => 40,
-                    'research_design' => 40,
-                    'adviser' => 40,
-                    default => 30
-                };
-                
-                if (strlen($value) > $maxLength) {
-                    $value = substr($value, 0, $maxLength - 3) . '...';
-                }
-                
-                // Center certain fields
-                $class = in_array($field, ['year', 'respondents_count', 'id']) ? 'centered' : 'text-left';
-                $html .= '<td class="' . $class . '">' . htmlspecialchars($value) . '</td>';
-            }
-            
-            $html .= '</tr>';
-        }
-        
-        $html .= '</tbody></table>';
-        
-        // Output the HTML table
-        $pdf->writeHTML($html, true, false, true, false, '');
-        
-        // Add a summary section
-        $pdf->AddPage();
-        $pdf->SetFont('times', 'B', 14);
-        $pdf->Cell(0, 10, 'Summary Analysis', 0, 1, 'L');
-        
-        // Create summaries for different categories using HTML for better rendering
-        $this->addSummarySection($pdf, $researches, 'course', 'Course');
-        $this->addSummarySection($pdf, $researches, 'year', 'Year');
-        $this->addSummarySection($pdf, $researches, 'research_design', 'Research Design');
-        
-        if ($researches->whereNotNull('category')->count() > 0) {
-            $this->addSummarySection($pdf, $researches, 'category', 'Category');
-        }
+   private function generateEnhancedFullReportContent($researches, $request)
+{
+    $fields = $request->input('fields', ['title', 'course', 'researchers', 'adviser', 'year', 'research_design']);
+    if (!is_array($fields)) {
+        $fields = explode(',', $fields);
     }
+    return $this->generateDetailedListHtmlTable($researches, $fields);
+}
     
     /**
      * Add a summary section for a specific field in the PDF report.
@@ -1856,107 +1701,23 @@ class StatisticsController extends Controller
      * @param \Illuminate\Database\Eloquent\Collection $researches
      * @param \Illuminate\Http\Request $request
      */
-    private function generateEnhancedYearReportContent($pdf, $researches, $request)
-    {
-        // Overview section
-        $pdf->SetFont('times', 'B', 14);
-        $pdf->Cell(0, 10, 'Year Distribution Overview', 0, 1, 'L');
-        $pdf->SetFont('times', '', 11);
-        $pdf->Ln(2);
-        
-        // Group by year
-        $yearData = $researches->groupBy('year')
-            ->map(function ($group) {
-                return $group->count();
-            })->sortKeys();
-        
-        // Year distribution table
-        $pdf->SetFillColor(75, 0, 130); // Indigo (matches PILAR color theme)
-        $pdf->SetTextColor(255, 255, 255); // White text for header
-        $pdf->SetFont('helvetica', 'B', 10);
-        $pdf->Cell(50, 8, 'Year', 1, 0, 'C', true);
-        $pdf->Cell(50, 8, 'Number of Papers', 1, 0, 'C', true);
-        $pdf->Cell(50, 8, 'Percentage', 1, 1, 'C', true);
-        
-        // Reset text color to black for data rows
-        $pdf->SetTextColor(0, 0, 0);
-        $pdf->SetFont('helvetica', '', 10);
-        
-        $totalPapers = $researches->count();
-        $rowCount = 0;
-        
-        foreach ($yearData as $year => $count) {
-            // Alternate row background color for better readability
-            $fillColor = ($rowCount % 2 === 0) ? false : true;
-            $fillColorValue = ($rowCount % 2 === 0) ? 255 : 240;
-            $pdf->SetFillColor($fillColorValue, $fillColorValue, $fillColorValue);
-            
-            $pdf->Cell(50, 8, $year, 1, 0, 'L', $fillColor);
-            $pdf->Cell(50, 8, $count, 1, 0, 'C', $fillColor);
-            $pdf->Cell(50, 8, round(($count / $totalPapers) * 100, 1) . '%', 1, 1, 'C', $fillColor);
-            
-            $rowCount++;
-        }
-        
-        // Year trend analysis
-        $pdf->Ln(5);
-        $pdf->SetFont('times', 'B', 14);
-        $pdf->Cell(0, 10, 'Year Trend Analysis', 0, 1, 'L');
-        $pdf->SetFont('times', '', 11);
-        
-        // Calculate year-over-year growth
-        $previousCount = null;
-        
-        $pdf->Ln(2);
-        $pdf->SetFillColor(75, 0, 130);
-        $pdf->SetTextColor(255, 255, 255);
-        $pdf->SetFont('helvetica', 'B', 10);
-        $pdf->Cell(50, 8, 'Year', 1, 0, 'C', true);
-        $pdf->Cell(50, 8, 'Number of Papers', 1, 0, 'C', true);
-        $pdf->Cell(50, 8, 'Growth %', 1, 1, 'C', true);
-        
-        $pdf->SetTextColor(0, 0, 0);
-        $pdf->SetFont('helvetica', '', 10);
-        
-        $rowCount = 0;
-        foreach ($yearData as $year => $count) {
-            $fillColor = ($rowCount % 2 === 0) ? false : true;
-            $fillColorValue = ($rowCount % 2 === 0) ? 255 : 240;
-            $pdf->SetFillColor($fillColorValue, $fillColorValue, $fillColorValue);
-            
-            $growth = '';
-            if ($previousCount !== null && $previousCount > 0) {
-                $growthPercent = round((($count - $previousCount) / $previousCount) * 100, 1);
-                
-                // Color code the growth percentage (green for positive, red for negative)
-                if ($growthPercent > 0) {
-                    $pdf->SetTextColor(0, 128, 0); // Green
-                    $growth = '+' . $growthPercent . '%';
-                } elseif ($growthPercent < 0) {
-                    $pdf->SetTextColor(255, 0, 0); // Red
-                    $growth = $growthPercent . '%';
-                } else {
-                    $pdf->SetTextColor(0, 0, 0); // Black
-                    $growth = '0%';
-                }
-            } else {
-                $pdf->SetTextColor(0, 0, 0); // Black
-                $growth = 'N/A';
-            }
-            
-            $pdf->Cell(50, 8, $year, 1, 0, 'L', $fillColor);
-            $pdf->Cell(50, 8, $count, 1, 0, 'C', $fillColor);
-            $pdf->Cell(50, 8, $growth, 1, 1, 'C', $fillColor);
-            
-            $previousCount = $count;
-            $pdf->SetTextColor(0, 0, 0); // Reset text color
-            $rowCount++;
-        }
-        
-        // Add detailed list of papers by year
-        $this->addDetailedResearchList($pdf, $researches, $request);
-    }
+   private function generateEnhancedYearReportContent($researches, $request)
+{
+    $html = '<h3>Year Distribution Overview</h3>';
+    $groupedData = $researches->groupBy('year')->map->count()->sortKeys();
+    $total = $researches->count();
 
+    $html .= '<table border="1"><thead><tr><th>Year</th><th># of Papers</th><th>Percentage</th></tr></thead><tbody>';
+    foreach ($groupedData as $item => $count) {
+        $percentage = round(($count / $total) * 100, 1);
+        $html .= '<tr><td class="centered">' . $item . '</td><td class="centered">' . $count . '</td><td class="centered">' . $percentage . '%</td></tr>';
+    }
+    $html .= '</tbody></table>';
+
+    $fields = $request->input('fields', ['title', 'year', 'course', 'research_design', 'researchers']);
+    $html .= $this->generateDetailedListHtmlTable($researches, $fields);
+    return $html;
+}
     /**
      * Generate enhanced content for methodology report in PDF.
      *
@@ -1964,92 +1725,23 @@ class StatisticsController extends Controller
      * @param \Illuminate\Database\Eloquent\Collection $researches
      * @param \Illuminate\Http\Request $request
      */
-    private function generateEnhancedMethodologyReportContent($pdf, $researches, $request)
-    {
-        // Overview section
-        $pdf->SetFont('times', 'B', 14);
-        $pdf->Cell(0, 10, 'Research Methodology Overview', 0, 1, 'L');
-        $pdf->SetFont('times', '', 11);
-        $pdf->Ln(2);
-        
-        // Group by research design
-        $methodologyData = $researches->groupBy('research_design')
-            ->map(function ($group) {
-                return $group->count();
-            })->sortDesc();
-        
-        // Methodology distribution table
-        $pdf->SetFillColor(75, 0, 130); // Indigo (matches PILAR color theme)
-        $pdf->SetTextColor(255, 255, 255); // White text for header
-        $pdf->SetFont('helvetica', 'B', 10);
-        $pdf->Cell(90, 8, 'Research Design', 1, 0, 'C', true);
-        $pdf->Cell(40, 8, 'Number of Papers', 1, 0, 'C', true);
-        $pdf->Cell(40, 8, 'Percentage', 1, 1, 'C', true);
-        
-        // Reset text color to black for data rows
-        $pdf->SetTextColor(0, 0, 0);
-        $pdf->SetFont('helvetica', '', 10);
-        
-        $totalPapers = $researches->count();
-        $rowCount = 0;
-        
-        foreach ($methodologyData as $design => $count) {
-            // Alternate row background color for better readability
-            $fillColor = ($rowCount % 2 === 0) ? false : true;
-            $fillColorValue = ($rowCount % 2 === 0) ? 255 : 240;
-            $pdf->SetFillColor($fillColorValue, $fillColorValue, $fillColorValue);
-            
-            $pdf->Cell(90, 8, $design ?: 'Not Specified', 1, 0, 'L', $fillColor);
-            $pdf->Cell(40, 8, $count, 1, 0, 'C', $fillColor);
-            $pdf->Cell(40, 8, round(($count / $totalPapers) * 100, 1) . '%', 1, 1, 'C', $fillColor);
-            
-            $rowCount++;
-        }
-        
-        // Research Types within each Research Design
-        $pdf->AddPage();
-        foreach ($methodologyData as $design => $count) {
-            $designPapers = $researches->where('research_design', $design);
-            
-            // Group by research type
-            $typeData = $designPapers->groupBy('research_type')
-                ->map(function ($group) {
-                    return $group->count();
-                })->sortDesc();
-            
-            $pdf->SetFont('times', 'B', 12);
-            $pdf->Cell(0, 10, ($design ?: 'Not Specified') . ' (' . $count . ' papers)', 0, 1, 'L');
-            
-            if ($typeData->count() > 0) {
-                $pdf->SetFont('helvetica', 'B', 10);
-                $pdf->SetFillColor(75, 0, 130);
-                $pdf->SetTextColor(255, 255, 255);
-                $pdf->Cell(90, 8, 'Research Type', 1, 0, 'C', true);
-                $pdf->Cell(40, 8, 'Count', 1, 0, 'C', true);
-                $pdf->Cell(40, 8, 'Percentage', 1, 1, 'C', true);
-                
-                $pdf->SetTextColor(0, 0, 0);
-                $pdf->SetFont('helvetica', '', 10);
-                
-                $rowCount = 0;
-                foreach ($typeData as $type => $typeCount) {
-                    $fillColor = ($rowCount % 2 === 0) ? false : true;
-                    $fillColorValue = ($rowCount % 2 === 0) ? 255 : 240;
-                    $pdf->SetFillColor($fillColorValue, $fillColorValue, $fillColorValue);
-                    
-                    $pdf->Cell(90, 8, $type ?: 'Not Specified', 1, 0, 'L', $fillColor);
-                    $pdf->Cell(40, 8, $typeCount, 1, 0, 'C', $fillColor);
-                    $pdf->Cell(40, 8, round(($typeCount / $count) * 100, 1) . '%', 1, 1, 'C', $fillColor);
-                    $rowCount++;
-                }
-                
-                $pdf->Ln(5);
-            }
-        }
-        
-        // Add detailed list of papers by methodology
-        $this->addDetailedResearchList($pdf, $researches, $request);
+   private function generateEnhancedMethodologyReportContent($researches, $request)
+{
+    $html = '<h3>Methodology Overview</h3>';
+    $groupedData = $researches->groupBy('research_design')->map->count()->sortDesc();
+    $total = $researches->count();
+
+    $html .= '<table border="1"><thead><tr><th width="60%">Research Design</th><th width="20%"># of Papers</th><th width="20%">Percentage</th></tr></thead><tbody>';
+    foreach ($groupedData as $item => $count) {
+        $percentage = round(($count / $total) * 100, 1);
+        $html .= '<tr><td>' . ($item ?: 'Not Specified') . '</td><td class="centered">' . $count . '</td><td class="centered">' . $percentage . '%</td></tr>';
     }
+    $html .= '</tbody></table>';
+
+    $fields = $request->input('fields', ['title', 'research_design', 'research_type', 'year', 'course']);
+    $html .= $this->generateDetailedListHtmlTable($researches, $fields);
+    return $html;
+}
 
     /**
      * Generate enhanced content for adviser report in PDF.
@@ -2058,92 +1750,22 @@ class StatisticsController extends Controller
      * @param \Illuminate\Database\Eloquent\Collection $researches
      * @param \Illuminate\Http\Request $request
      */
-    private function generateEnhancedAdviserReportContent($pdf, $researches, $request)
-    {
-        // Overview section
-        $pdf->SetFont('times', 'B', 14);
-        $pdf->Cell(0, 10, 'Adviser Distribution Overview', 0, 1, 'L');
-        $pdf->SetFont('times', '', 11);
-        $pdf->Ln(2);
-        
-        // Group by adviser
-        $adviserData = $researches->groupBy('adviser')
-            ->map(function ($group) {
-                return $group->count();
-            })->sortDesc();
-        
-        // Adviser distribution table
-        $pdf->SetFillColor(75, 0, 130); // Indigo (matches PILAR color theme)
-        $pdf->SetTextColor(255, 255, 255); // White text for header
-        $pdf->SetFont('helvetica', 'B', 10);
-        $pdf->Cell(90, 8, 'Adviser', 1, 0, 'C', true);
-        $pdf->Cell(40, 8, 'Number of Papers', 1, 0, 'C', true);
-        $pdf->Cell(40, 8, 'Percentage', 1, 1, 'C', true);
-        
-        // Reset text color to black for data rows
-        $pdf->SetTextColor(0, 0, 0);
-        $pdf->SetFont('helvetica', '', 10);
-        
-        $totalPapers = $researches->count();
-        $rowCount = 0;
-        
-        foreach ($adviserData as $adviser => $count) {
-            $fillColor = ($rowCount % 2 === 0) ? false : true;
-            $fillColorValue = ($rowCount % 2 === 0) ? 255 : 240;
-            $pdf->SetFillColor($fillColorValue, $fillColorValue, $fillColorValue);
-            
-            $pdf->Cell(100, 8, $adviser ?: 'Not Specified', 1, 0, 'L', $fillColor);
-            $pdf->Cell(40, 8, $count, 1, 0, 'C', $fillColor);
-            $pdf->Cell(40, 8, round(($count / $totalPapers) * 100, 1) . '%', 1, 1, 'C', $fillColor);
-            
-            $rowCount++;
-        }
-        
-        // Course breakdown by research design
-        $pdf->AddPage();
-        $pdf->SetFont('times', 'B', 14);
-        $pdf->Cell(0, 10, 'Course by Research Design', 0, 1, 'L');
-        $pdf->SetFont('times', '', 11);
-        $pdf->Ln(2);
-        
-        // Create cross-tabulation
-        $researchDesigns = $researches->pluck('research_design')->unique()->sort()->filter();
-        
-        // Header row
-        $pdf->SetFillColor(75, 0, 130); // Indigo (matches PILAR color theme)
-        $pdf->SetTextColor(255, 255, 255); // White text for header
-        $pdf->SetFont('helvetica', 'B', 10);
-        $pdf->Cell(60, 8, 'Course', 1, 0, 'C', true);
-        
-        foreach ($researchDesigns as $design) {
-            $pdf->Cell(30, 8, $design ?: 'Not Specified', 1, 0, 'C', true);
-        }
-        
-        $pdf->Cell(30, 8, 'Total', 1, 1, 'C', true);
-        
-        // Reset text color to black for data rows
-        $pdf->SetTextColor(0, 0, 0);
-        $pdf->SetFont('helvetica', '', 10);
-        
-        $rowCount = 0;
-        foreach ($courseData as $course => $totalCount) {
-            // Alternate row background color
-            $fillColor = ($rowCount % 2 === 0) ? false : true;
-            $fillColorValue = ($rowCount % 2 === 0) ? 255 : 240;
-            $pdf->SetFillColor($fillColorValue, $fillColorValue, $fillColorValue);
-            
-            $pdf->Cell(60, 8, $course ?: 'Not Specified', 1, 0, 'L', $fillColor);
-            
-            foreach ($researchDesigns as $design) {
-                $count = $researches->where('course', $course)->where('research_design', $design)->count();
-                $pdf->Cell(30, 8, $count, 1, 0, 'C', $fillColor);
-            }
-            
-            $pdf->Cell(30, 8, $totalCount, 1, 1, 'C', $fillColor);
-            $rowCount++;
-        }
-        
-        // Add detailed list of papers by course
-        $this->addDetailedResearchList($pdf, $researches, $request);
+   private function generateEnhancedAdviserReportContent($researches, $request)
+{
+    $html = '<h3>Adviser Distribution Overview</h3>';
+    $groupedData = $researches->groupBy('adviser')->map->count()->sortDesc();
+    $total = $researches->count();
+
+    $html .= '<table border="1"><thead><tr><th width="60%">Adviser</th><th width="20%"># of Papers</th><th width="20%">Percentage</th></tr></thead><tbody>';
+    foreach ($groupedData as $item => $count) {
+        $percentage = round(($count / $total) * 100, 1);
+        $html .= '<tr><td>' . ($item ?: 'Not Specified') . '</td><td class="centered">' . $count . '</td><td class="centered">' . $percentage . '%</td></tr>';
     }
+    $html .= '</tbody></table>';
+
+    $fields = $request->input('fields', ['title', 'adviser', 'course', 'year', 'researchers']);
+    $html .= $this->generateDetailedListHtmlTable($researches, $fields);
+    return $html;
+}
+
 }

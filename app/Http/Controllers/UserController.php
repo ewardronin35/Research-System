@@ -54,10 +54,11 @@ class UserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make(substr(md5(time()), 0, 8)), // Generate random password
-            'role' => $request->role,
             'can_login' => $request->has('can_login'),
             'last_login_at' => null, // This triggers reset on first login
         ]);
+        $user->assignRole($request->role); // Assign the role using the Spatie method
+
         Password::sendResetLink(['email' => $user->email]);
 
         return redirect()->route('head.users.index')
@@ -97,12 +98,12 @@ class UserController extends Controller
             'can_login' => 'sometimes|boolean',
         ]);
 
-        $user->update([
-            'name' => $request->name,
-            'email' => $request->email,
-            'role' => $request->role,
-            'can_login' => $request->has('can_login'),
-        ]);
+$user->update([
+    'name' => $request->name,
+    'email' => $request->email,
+    'can_login' => $request->has('can_login'),
+]);
+$user->syncRoles([$request->role]); // Use syncRoles for updates
 
         return redirect()->route('head.users.index')
             ->with('success', 'User updated successfully.');
@@ -174,7 +175,7 @@ public function import(Request $request)
         }
         
         // Check if the required columns exist
-        $requiredColumns = ['name', 'email', 'role'];
+        $requiredColumns = ['name', 'email', 'role', 'can_login'];
         $headerMap = array_flip($header);
         
         foreach ($requiredColumns as $column) {
@@ -231,8 +232,8 @@ public function import(Request $request)
             
             if (empty($data['role'])) {
                 $rowErrors[] = "Role is required";
-            } elseif (!in_array($data['role'], ['admin', 'researcher', 'head', 'faculty'])) {
-                $rowErrors[] = "Role must be admin, researcher, head, or faculty";
+            } elseif (!in_array($data['role'], ['user', 'head'])) {
+                $rowErrors[] = "Role must be user or head";
             }
             
             if (!empty($rowErrors)) {
@@ -241,15 +242,15 @@ public function import(Request $request)
             }
             
             // Create the user
-            User::create([
-                'name' => $data['name'],
-                'email' => $data['email'],
-                'password' => Hash::make(substr(md5(time() . rand()), 0, 8)),
-                'role' => $data['role'],
-                'can_login' => $data['can_login'] ?? true,
-                'password_changed' => false, // New users need to change their password
-            ]);
-            
+$user = User::create([
+    'name' => $data['name'],
+    'email' => $data['email'],
+    'password' => Hash::make(substr(md5(time() . rand()), 0, 8)),
+    'can_login' => $data['can_login'] ?? true,
+    'password_changed' => false, // New users need to change their password
+]);
+            $user->assignRole($data['role']); // Assign the role using the Spatie method
+
             $successCount++;
             $successfulEmails[] = $data['email']; // Collect the email
 
