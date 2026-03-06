@@ -41,7 +41,30 @@
             --gray-300: #dee2e6;
             --gray-800: #343a40;
         }
-        
+        /* Update the Hero Section to prevent overlapping */
+.hero-section {
+    background: linear-gradient(135deg, rgba(67, 97, 238, 0.9), rgba(58, 12, 163, 0.9)),
+                url('https://images.unsplash.com/photo-1434030216411-0b793f4b4173?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80');
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    min-height: 65vh;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    padding-bottom: 80px; /* ADD THIS LINE TO PREVENT OVERLAP */
+}
+
+/* Update the default badge to ensure visibility for ANY degree */
+.badge-course {
+    padding: 6px 12px;
+    border-radius: 50px;
+    font-weight: 500;
+    font-size: 0.8rem;
+    background-color: var(--primary); /* ADD FALLBACK COLOR */
+    color: white; /* ADD FALLBACK COLOR */
+}
+
         body {
             font-family: 'Inter', sans-serif;
             overflow-x: hidden;
@@ -420,15 +443,7 @@
     max-width: 200px; /* Limit width to prevent expansion */
 }
 
-/* Hide less important columns on mobile immediately */
-@media (max-width: 768px) {
-    #researchTable th:nth-child(3), #researchTable td:nth-child(3), /* Researchers */
-    #researchTable th:nth-child(4), #researchTable td:nth-child(4), /* Adviser */
-    #researchTable th:nth-child(6), #researchTable td:nth-child(6)  /* Design */
-    {
-        display: none;
-    }
-}
+
         .btn-action {
             border-radius: 50px;
             padding: 6px 16px;
@@ -984,7 +999,7 @@
                         
                         <!-- Filter Pills -->
                         <div class="filter-section">
-                            <p class="fw-bold mb-2">Program/Course:</p>
+                            <p class="fw-bold mb-2">Degree:</p>
                             <div class="filter-chips" id="courseFilters">
                                 <button class="filter-chip active" data-filter="course" data-value="all">All Courses</button>
                                 @foreach($courseCounts as $courseCount)
@@ -1029,7 +1044,7 @@
                                 <thead>
                                     <tr>
                                         <th>Title</th>
-                                        <th>Course</th>
+                                        <th>Degree</th>
                                         <th>Researchers</th>
                                         <th>Adviser</th>
                                         <th>Year</th>
@@ -1244,9 +1259,9 @@
         <div class="container">
             <div class="row">
                 <div class="col-lg-4 col-md-6 mb-5 mb-lg-0">
-                    <a href="#" class="footer-logo text-white text-decoration-none">
-                        <i class="fas fa-book-open me-2"></i> Research Repository
-                    </a>
+                   <a href="#" class="footer-logo text-white text-decoration-none">
+    <i class="fas fa-book-open me-2"></i> Research and Innovation Center and Book of Abstract
+</a>
                     <p class="footer-text">A comprehensive collection of academic research papers from students and faculty across various disciplines and methodologies.</p>
                     <div class="social-links">
                         <a href="#" class="social-icon"><i class="fab fa-facebook-f"></i></a>
@@ -1300,7 +1315,7 @@
             <div class="footer-bottom">
                 <div class="row">
                     <div class="col-md-6">
-                        <p class="mb-md-0">© {{ date('Y') }} Pilar College Research Repository. All rights reserved.</p>
+                       <p class="mb-md-0">© {{ date('Y') }} Pilar College Research and Innovation Center. All rights reserved.</p>
                     </div>
                     <div class="col-md-6 text-md-end">
                         <p class="mb-0">Terms of Service | Privacy Policy</p>
@@ -1527,72 +1542,43 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Course filter functionality
-    $('#courseFilters').on('click', '.filter-chip', function() {
-        const value = $(this).data('value');
-        
-        // Update UI
-        $('#courseFilters .filter-chip').removeClass('active');
-        $(this).addClass('active');
-        
-        // Apply filter with a loading indicator
-        showLoading();
-        
-        setTimeout(() => {
-            if (value === 'all') {
-                table.column(1).search('').draw();
-            } else {
-                table.column(1).search(value).draw();
-            }
-            
-            // Update filter indicator
-            updateFilterIndicator();
-            hideLoading();
-        }, 100);
-    });
+  $('#courseFilters').on('click', '.filter-chip', function() {
+    const value = $(this).data('value');
+    $('#courseFilters .filter-chip').removeClass('active');
+    $(this).addClass('active');
+    showLoading();
+    
+    setTimeout(() => {
+        table.draw(); // FIX: Just call table.draw() to use the backend
+        updateFilterIndicator();
+        hideLoading();
+    }, 100);
+})
     
     // Research Design filter functionality
-    $('#designFilters').on('click', '.filter-chip', function() {
-        const value = $(this).data('value');
-        
-        // Update UI
-        $('#designFilters .filter-chip').removeClass('active');
-        $(this).addClass('active');
-        
-        // Apply filter with a loading indicator
-        showLoading();
-        
-        setTimeout(() => {
-            if (value === 'all') {
-                table.column(5).search('').draw();
-            } else {
-                table.column(5).search(value).draw();
-            }
-            
-            // Update filter indicator
-            updateFilterIndicator();
-            hideLoading();
-        }, 100);
-    });
+   $('#designFilters').on('click', '.filter-chip', function() {
+    const value = $(this).data('value');
+    $('#designFilters .filter-chip').removeClass('active');
+    $(this).addClass('active');
+    showLoading();
+    
+    setTimeout(() => {
+        table.draw(); // FIX: Just call table.draw()
+        updateFilterIndicator();
+        hideLoading();
+    }, 100);
+});
     
     // Search form submission with throttling
-    $('#searchForm').on('submit', function(e) {
-        e.preventDefault();
-        
-        showLoading();
-        
-        // Get form values with sanitization
-        const keywords = sanitizeInput($('#searchKeywords').val());
-        const year = $('#yearFilter').val();
-        
-        setTimeout(() => {
-            // Apply search
-            table.search(keywords).column(4).search(year).draw();
-            
-            // Update filter indicator
-            updateFilterIndicator();
-            hideLoading();
-        }, 100);
-    });
+ $('#searchForm').on('submit', function(e) {
+    e.preventDefault();
+    showLoading();
+    setTimeout(() => {
+        table.draw(); // FIX: Just call table.draw()
+        updateFilterIndicator();
+        hideLoading();
+    }, 100);
+});
     
     // Input sanitization function
     function sanitizeInput(input) {
@@ -1669,7 +1655,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 $('#yearFilter').val('');
                 
                 // Reset DataTable search and draw
-                table.search('').columns().search('').draw();
+                table.draw(); // FIX: Just call table.draw()
                 
                 // Update filter indicator
                 updateFilterIndicator();
@@ -1696,7 +1682,7 @@ document.addEventListener('DOMContentLoaded', function() {
             $('#yearFilter').val('');
             
             // Reset DataTable search and draw
-            table.search('').columns().search('').draw();
+            table.draw();  // FIX: Just call table.draw()
             
             // Remove filter indicator
             $('#filterSummary').empty();

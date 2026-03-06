@@ -563,7 +563,7 @@ class ResearchController extends Controller
         }
     }
 
-    public function showApprovals()
+  public function showApprovals()
     {
         // FIX: Allow both 'Super Admin' AND 'Research Staff'
         if (!Auth::user()->hasRole(['Super Admin', 'Research Staff'])) {
@@ -571,10 +571,15 @@ class ResearchController extends Controller
         }
 
         $pendingResearch = Research::where('approval_status', 'pending')->latest()->get();
+        // ADD THESE TWO LINES:
+        $approvedResearch = Research::where('approval_status', 'approved')->latest()->get();
+        $rejectedResearch = Research::where('approval_status', 'rejected')->latest()->get();
         
         // FIX: Determine prefix based on 'Super Admin'
         $prefix = Auth::user()->hasRole('Super Admin') ? 'head' : 'user';
-        return view($prefix . '.research.approvals', compact('pendingResearch'));
+        
+        // ADD THEM TO THE COMPACT FUNCTION:
+        return view($prefix . '.research.approvals', compact('pendingResearch', 'approvedResearch', 'rejectedResearch'));
     }
 
     public function approve(Research $research)
