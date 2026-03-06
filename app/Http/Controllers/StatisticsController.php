@@ -222,7 +222,7 @@ private function generateDetailedListHtmlTable($researches, $fields)
 }
     public function index()
     {
-        $prefix = Auth::user()->hasRole('head') ? 'head' : 'user';
+       $prefix = Auth::user()->hasRole('Super Admin') ? 'head' : 'user';
 
         // Get all research papers
         $researches = Research::all();

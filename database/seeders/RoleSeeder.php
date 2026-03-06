@@ -16,7 +16,7 @@ class RoleSeeder extends Seeder
         // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Create permissions
+        // Define permissions
         $permissions = [
             'view research',
             'create research',
@@ -27,20 +27,34 @@ class RoleSeeder extends Seeder
             'approve research',
         ];
 
+        // Loop through and create permissions safely
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            // Use firstOrCreate to prevent "Permission already exists" error
+            Permission::firstOrCreate(['name' => $permission]);
         }
 
-        // Create User role and assign permissions
-        $userRole = Role::create(['name' => 'user']);
-        $userRole->givePermissionTo([
+        // --- MIGRATION: Rename old roles if they exist ---
+        // This ensures existing users keep their access level
+        if (Role::where('name', 'head')->exists()) {
+            Role::where('name', 'head')->update(['name' => 'Super Admin']);
+        }
+        if (Role::where('name', 'user')->exists()) {
+            Role::where('name', 'user')->update(['name' => 'Research Staff']);
+        }
+
+        // --- ROLE CREATION ---
+
+        // 1. Research Staff Role
+        $staffRole = Role::firstOrCreate(['name' => 'Research Staff']);
+        // Use syncPermissions to set permissions without duplicating
+        $staffRole->syncPermissions([
             'view research',
             'create research',
-            'edit research', // User can only edit their own research
+            'edit research', 
         ]);
 
-        // Create Head role and assign permissions
-        $headRole = Role::create(['name' => 'head']);
-        $headRole->givePermissionTo(Permission::all()); // Head has all permissions
+        // 2. Super Admin Role
+        $adminRole = Role::firstOrCreate(['name' => 'Super Admin']);
+        $adminRole->syncPermissions(Permission::all());
     }
 }

@@ -12,29 +12,30 @@ class ResearchCodeController extends Controller
     /**
      * Display the code management page.
      */
-   public function index()
-    {
-        $user = auth()->user();
+  public function index()
+{
+    $user = auth()->user();
 
-        // Check if user is even logged in
-        if (!$user) {
-            // Redirect to login if something is wrong
-            return redirect()->route('login');
-        }
-
-        // THE CORRECTED LOGIC
-        // Use the hasRole() method to check the roles relationship
-        if ($user->hasRole('head')) {
-            return view('head.codes.index');
-        } elseif ($user->hasRole('user') || $user->hasRole('researcher')) {
-            return view('user.codes.index');
-        }
-
-        // This fallback redirect is for users with other roles (or no roles).
-        // It will still cause an error if the 'home' route is not defined.
-        return redirect()->route('home')->with('error', 'Unauthorized access');
+    if (!$user) {
+        return redirect()->route('login');
     }
 
+    // OLD CODE:
+    // if ($user->hasRole('head')) {
+    //     return view('head.codes.index');
+    // } elseif ($user->hasRole('user') || $user->hasRole('researcher')) {
+    //     return view('user.codes.index');
+    // }
+
+    // NEW CODE:
+    if ($user->hasRole('Super Admin')) {
+        return view('head.codes.index');
+    } elseif ($user->hasRole('Research Staff')) {
+        return view('user.codes.index');
+    }
+
+    return redirect()->route('dashboard')->with('error', 'Unauthorized access');
+}
     /**
      * Fetch all codes for the Handsontable component.
      */

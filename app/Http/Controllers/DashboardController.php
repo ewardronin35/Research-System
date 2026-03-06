@@ -11,8 +11,9 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        // Determine the prefix based on user role
-        $prefix = Auth::user()->hasRole('head') ? 'head' : 'user';
+        // Determine the view folder prefix based on the new Role names
+        // Super Admin uses 'head' views, Research Staff uses 'user' views
+        $prefix = Auth::user()->hasRole('Super Admin') ? 'head' : 'user';
     
         // Total counts
         $totalResearchPapers = Research::count();

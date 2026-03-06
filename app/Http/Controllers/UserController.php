@@ -57,8 +57,7 @@ class UserController extends Controller
             'can_login' => $request->has('can_login'),
             'last_login_at' => null, // This triggers reset on first login
         ]);
-        $user->assignRole($request->role); // Assign the role using the Spatie method
-
+$user->assignRole('Research Staff');
         Password::sendResetLink(['email' => $user->email]);
 
         return redirect()->route('head.users.index')
@@ -118,11 +117,9 @@ $user->syncRoles([$request->role]); // Use syncRoles for updates
     public function destroy(User $user)
     {
         // Don't allow deleting yourself
-        if ($user->id === auth()->id()) {
-            return redirect()->route('head.users.index')
-                ->with('error', 'You cannot delete your own account.');
-        }
-
+       if ($user->hasRole('Super Admin')) {
+        return redirect()->route('head.users.index')->with('error', 'Cannot delete a Super Admin.');
+    }
         $user->delete();
         return redirect()->route('head.users.index')
             ->with('success', 'User deleted successfully.');

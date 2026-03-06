@@ -408,7 +408,27 @@
             background-color: var(--gray-800);
             color: white;
         }
-        
+        .badge-bsba { background-color: #6f42c1; color: white; } /* Purple */
+.badge-blis { background-color: #fd7e14; color: white; } /* Orange-Red */
+.badge-beed { background-color: #20c997; color: white; } /* Teal */
+.badge-bshm { background-color: #d63384; color: white; } /* Pink */
+.badge-bstm { background-color: #0d6efd; color: white; } /* Blue */
+/* Add this to your CSS */
+#researchTable td {
+    white-space: normal !important; /* Force text to wrap */
+    word-wrap: break-word;
+    max-width: 200px; /* Limit width to prevent expansion */
+}
+
+/* Hide less important columns on mobile immediately */
+@media (max-width: 768px) {
+    #researchTable th:nth-child(3), #researchTable td:nth-child(3), /* Researchers */
+    #researchTable th:nth-child(4), #researchTable td:nth-child(4), /* Adviser */
+    #researchTable th:nth-child(6), #researchTable td:nth-child(6)  /* Design */
+    {
+        display: none;
+    }
+}
         .btn-action {
             border-radius: 50px;
             padding: 6px 16px;
@@ -867,8 +887,7 @@
         <!-- Logo and Branding -->
         <a class="navbar-brand d-flex align-items-center" href="{{ url('/') }}">
             <img src="{{ asset('pilarLogo.png') }}" alt="Pilar College" class="me-2" style="height: 2em; width: auto;">
-            <span class="d-none d-sm-inline">Pilar College Research Repository</span>
-            <span class="d-inline d-sm-none">Research Repository</span>
+          <span class="d-none d-sm-inline">Research and Innovation Center and Book of Abstract</span>
         </a>
         
         <!-- Mobile Toggle Button -->
@@ -1319,6 +1338,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Initialize DataTable with performance improvements
+// Initialize DataTable with Server-Side Processing
     var table = $('#researchTable').DataTable({
         responsive: true,
         ordering: true,
@@ -1327,6 +1347,57 @@ document.addEventListener('DOMContentLoaded', function() {
         info: true,
         autoWidth: false,
         processing: true,
+        serverSide: true, // IMPORTANT: Enables server-side processing
+        ajax: {
+            url: "{{ route('api.research.data') }}", // Ensure this route is defined in web.php
+            data: function (d) {
+                // Pass custom filter values to the server
+                d.keywords = $('#searchKeywords').val();
+                d.year = $('#yearFilter').val();
+                // Get active course filter
+                d.course = $('.filter-chip[data-filter="course"].active').data('value') || 'all';
+                // Get active design filter
+                d.design = $('.filter-chip[data-filter="design"].active').data('value') || 'all';
+            },
+            error: function (xhr, error, thrown) {
+                console.error('DataTables error:', error, thrown);
+                // Optional: Hide the loading overlay if an error occurs
+                hideLoading();
+            }
+        },
+        columns: [
+            { data: 'title', name: 'title' },
+            { 
+                data: 'course', 
+                name: 'course',
+                render: function(data, type, row) {
+                    // Safe check for null data
+                    var courseClass = data ? data.toLowerCase() : 'default';
+                    // Map generic colors if specific class doesn't exist (optional safety)
+                    return '<span class="badge badge-course badge-' + courseClass + '">' + (data || 'N/A') + '</span>';
+                }
+            },
+            { data: 'researchers', name: 'researchers' },
+            { data: 'adviser', name: 'adviser' },
+            { data: 'year', name: 'year' },
+            { 
+                data: 'research_design', 
+                name: 'research_design',
+                render: function(data) {
+                    return data ? data : '<span class="text-muted">Not specified</span>';
+                }
+            },
+            { 
+                data: 'id', 
+                name: 'actions', 
+                orderable: false, 
+                searchable: false,
+                render: function(data, type, row) {
+                    return '<button class="btn btn-primary btn-sm btn-action view-btn" data-id="' + data + '">' +
+                           '<i class="fas fa-eye me-1"></i> View</button>';
+                }
+            }
+        ],
         language: {
             search: "_INPUT_",
             searchPlaceholder: "Search records...",
@@ -1339,17 +1410,20 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         dom: '<"row"<"col-md-6"l><"col-md-6"f>>rt<"row"<"col-md-6"i><"col-md-6"p>>',
         lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
+        order: [[4, 'desc']], // Default sort by Year (column index 4) descending
         columnDefs: [
-            { targets: 6, orderable: false },
-            { targets: [2, 3, 5], visible: true }
+            { targets: 6, orderable: false }, // Disable sorting on Actions column
+            { targets: [2, 3, 5], visible: true } // Ensure these columns are visible
         ],
+        drawCallback: function(settings) {
+            // Re-initialize any components after table draw if needed
+            // e.g., tooltips or other UI elements inside the table
+        },
         initComplete: function() {
-            // After table initialization
-            $('.dataTables_wrapper .dataTables_filter input')
-                .off()
-                .on('input', debounce(function() {
-                    table.search(this.value).draw();
-                }, 500));
+            // Override default search box to use our custom external search box logic
+            // If you are using the #searchKeywords input at the top, you might want 
+            // to hide the default DataTables search box:
+            // $('.dataTables_filter').hide(); 
         }
     });
     
